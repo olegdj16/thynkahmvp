@@ -1,0 +1,16 @@
+LOAD DATABASE
+     FROM sqlite:///data/thynkah.db
+     INTO postgresql://postgres:qwe12345@host.docker.internal:5432/thynkah
+
+ WITH include no drop, create tables, create indexes, reset sequences
+
+ SET work_mem to '128MB', maintenance_work_mem to '512MB'
+
+ CAST type datetime to timestamptz
+
+ INCLUDING ONLY TABLE NAMES MATCHING
+     ~"^note_tags$"
+     ~"^notes$"
+     ~"^tags$"
+
+ ALTER SCHEMA 'main' RENAME TO 'public';

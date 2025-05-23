@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Thynkah</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+
+</head>
+
+<body>
+
+<h1>🧠 Thynkah</h1>
+
+<div id="headerArea">
+    <nav class="navbar">
+        <a th:href="@{/}">🧠 Home</a>
+        <a th:href="@{/calendar}">📅 Calendar</a>
+    </nav>
+
+    <textarea id="question" placeholder="Ask your brain something..."></textarea>
+    <div style="margin-top: 0.5rem;">
+        <button onclick="askQuestion()">Ask</button>
+        <button onclick="savePrompt()">Save Prompt</button>
+    </div>
+
+    <select id="savedPrompts" onchange="fillPrompt(this)" style="margin-top: 0.5rem;">
+        <option value="">🔽 Select a saved prompt</option>
+    </select>
+</div>
+
+<p id="response"></p>
+
+<hr />
+
+<textarea id="note" placeholder="Paste your journal entry or idea..."></textarea>
+<input id="tag" placeholder="Tags (comma-separated)" />
+<div id="tagSuggestions"></div>
+<button onclick="uploadNote()">Upload Note</button>
+
+<hr />
+<h3>📋 Your Notes</h3>
+
+<div id="notesList"></div>
+
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    async function uploadNote() {
+        const text = document.getElementById("note").value;
+        const tag = document.getElementById("tag").value;
+        if (!text.trim()) return;
+        await fetch("/embed", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text, tag }),
+        });
+        document.getElementById("note").value = "";
+        document.getElementById("tag").value = "";
+        loadNotes();
+        loadTagSuggestions();
+    }
+
+    async function askQuestion() {
+        const question = document.getElementById("question").value;
+        if (!question.trim()) return;
+        const res = await fetch("/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question }),
+        });
+        const data = await res.json();
+        document.getElementById("response").innerText = data.reply;
+    }
+
+    async function savePrompt() {
+        const prompt = document.getElementById("question").value.trim();
+        if (!prompt) return;
+        await fetch("/prompts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt }),
+        });
+        loadSavedPrompts();
+    }
+
+    async function loadSavedPrompts() {
+        const res = await fetch("/prompts");
+        const prompts = await res.json();
+        const dropdown = document.getElementById("savedPrompts");
+        dropdown.innerHTML = '<option value="">🔽 Select a saved prompt</option>';
+        prompts.forEach(p => {
+            const opt = document.createElement("option");
+            opt.value = p.prompt;
+            opt.textContent = p.prompt;
+            dropdown.appendChild(opt);
+        });
+    }
+
+    function fillPrompt(select) {
+        const selected = select.value;
+        if (selected) {
+            document.getElementById("question").value = selected;
+        }
+    }
+
+    async function loadTagSuggestions() {
+        const res = await fetch("/tags");
+        const tags = await res.json();
+        const container = document.getElementById("tagSuggestions");
+        container.innerHTML = "";
+        tags.forEach(tag => {
+            const span = document.createElement("span");
+            span.innerText = tag;
+            span.onclick = () => {
+                const input = document.getElementById("tag");
+                const current = input.value.split(',').map(t => t.trim()).filter(Boolean);
+                if (!current.includes(tag)) {
+                    current.push(tag);
+                    input.value = current.join(', ');
+                }
+            };
+            container.appendChild(span);
+        });
+    }
+
+    async function loadNotes() {
+        const res = await fetch("/notes");
+        const notes = await res.json();
+        const container = document.getElementById("notesList");
+        container.innerHTML = "";
+        notes.forEach(n => {
+            const div = document.createElement("div");
+            div.className = "note-card";
+            const tags = (n.tag || "").split(",").map(t => t.trim()).filter(Boolean);
+            div.innerHTML = `
+          <div id="tag-display-${n.id}">
+            ${tags.map(tag => `<span class="chip">${tag}</span>`).join(" ")}
+          </div>
+          <input id="tag-input-${n.id}" value="${n.tag || ""}" style="display:none; width:100%" />
+
+          <p id="text-display-${n.id}">${n.text}</p>
+          <textarea id="text-input-${n.id}" style="display:none;">${n.text}</textarea>
+
+          <small style="color:#666;">🕒 ${new Date(n.createdAt).toLocaleString()}</small>
+
+          <div class="note-actions" id="actions-${n.id}">
+            <button onclick="enableTextEdit(${n.id})">✏️</button>
+            <button onclick="enableTagEdit(${n.id})">🏷️</button>
+            <button onclick="showDeleteConfirm(${n.id})">🗑️</button>
+          </div>
+
+          <div class="note-actions" id="edit-actions-${n.id}" style="display:none;">
+            <button onclick="submitEdits(${n.id})">💾</button>
+            <button onclick="cancelEdits(${n.id})">❌</button>
+          </div>
+
+          <div class="note-actions" id="confirm-delete-${n.id}" style="display:none;">
+            <button onclick="deleteNote(${n.id})">✔️</button>
+            <button onclick="cancelDelete(${n.id})">❌</button>
+          </div>
+        `;
+            container.appendChild(div);
+        });
+    }
+
+    function enableTextEdit(id) {
+        document.getElementById(`text-display-${id}`).style.display = "none";
+        document.getElementById(`text-input-${id}`).style.display = "block";
+        document.getElementById(`actions-${id}`).style.display = "none";
+        document.getElementById(`edit-actions-${id}`).style.display = "flex";
+    }
+
+    function enableTagEdit(id) {
+        document.getElementById(`tag-display-${id}`).style.display = "none";
+        document.getElementById(`tag-input-${id}`).style.display = "block";
+        document.getElementById(`actions-${id}`).style.display = "none";
+        document.getElementById(`edit-actions-${id}`).style.display = "flex";
+    }
+
+    async function submitEdits(id) {
+        const newText = document.getElementById(`text-input-${id}`).value;
+        const newTag = document.getElementById(`tag-input-${id}`).value;
+
+        const resText = await fetch(`/notes/${id}/text`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: newText }),
+        });
+
+        const resTag = await fetch(`/notes/${id}/tag`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tag: newTag }),
+        });
+
+        if (resText.ok && resTag.ok) {
+            await loadNotes();
+            await loadTagSuggestions();
+        }
+    }
+
+    function cancelEdits(id) {
+        document.getElementById(`text-input-${id}`).style.display = "none";
+        document.getElementById(`tag-input-${id}`).style.display = "none";
+        document.getElementById(`text-display-${id}`).style.display = "block";
+        document.getElementById(`tag-display-${id}`).style.display = "block";
+        document.getElementById(`actions-${id}`).style.display = "flex";
+        document.getElementById(`edit-actions-${id}`).style.display = "none";
+    }
+
+    function showDeleteConfirm(id) {
+        document.getElementById(`actions-${id}`).style.display = "none";
+        document.getElementById(`confirm-delete-${id}`).style.display = "flex";
+    }
+
+    function cancelDelete(id) {
+        document.getElementById(`confirm-delete-${id}`).style.display = "none";
+        document.getElementById(`actions-${id}`).style.display = "flex";
+    }
+
+    async function deleteNote(id) {
+        await fetch(`/notes/${id}`, { method: "DELETE" });
+        loadNotes();
+    }
+
+    window.onload = () => {
+        loadNotes();
+        loadTagSuggestions();
+        loadSavedPrompts();
+    };
+    /*]]>*/
+</script>
+
+</body>
+</html>

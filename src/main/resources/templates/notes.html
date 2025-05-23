@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Thynkah Notes</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}" />
+</head>
+<body>
+<h1>🧠 Thynkah -- Notes</h1>
+
+<form th:action="@{/notes}" th:object="${noteForm}" method="post">
+    <textarea th:field="*{text}" placeholder="Paste your journal entry..."></textarea><br>
+    <input type="text" th:field="*{tag}" placeholder="Tags (comma-separated)" /><br>
+    <button type="submit">Save Note</button>
+</form>
+
+<hr/>
+
+<h3>📓 Saved Notes</h3>
+<div th:each="note : ${notes}" class="note-card">
+    <p><strong>Text:</strong> <span th:text="${note.text}"></span></p>
+    <p><strong>Tag:</strong> <span th:text="${note.tag}"></span></p>
+    <p><strong>Date:</strong> <span th:text="${#dates.format(note.createdAt, 'yyyy-MM-dd HH:mm')}"></span></p>
+
+    <form th:action="@{'/notes/delete/' + ${note.id}}" method="post">
+        <button type="submit">🗑 Delete</button>
+    </form>
+</div>
+</body>
+</html>
