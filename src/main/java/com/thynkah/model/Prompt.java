@@ -1,6 +1,6 @@
 package com.thynkah.model;
 
-import jakarta.persistence.*;
+import javax.persistence.*;
 
 @Entity
 @Table(name = "prompts")  // explicitly set table name

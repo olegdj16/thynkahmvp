@@ -48,7 +48,7 @@
         const text = document.getElementById("note").value;
         const tag = document.getElementById("tag").value;
         if (!text.trim()) return;
-        await fetch("/embed", {
+        await fetch("/notes", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ text, tag }),
@@ -62,6 +62,7 @@
     async function askQuestion() {
         const question = document.getElementById("question").value;
         if (!question.trim()) return;
+
         const res = await fetch("/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -69,6 +70,9 @@
         });
         const data = await res.json();
         document.getElementById("response").innerText = data.reply;
+
+        // HIDE saved prompts
+        document.getElementById("savedPrompts").style.display = "none";
     }
 
     async function savePrompt() {

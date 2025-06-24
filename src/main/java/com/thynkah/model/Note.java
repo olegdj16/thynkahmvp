@@ -1,9 +1,10 @@
 package com.thynkah.model;
 
-import jakarta.persistence.*;
+import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "notes")  // ✅ Ensures correct table name is used
 public class Note {
 
   @Id
@@ -11,6 +12,8 @@ public class Note {
   private Long id;
 
   private String text;
+
+  private String tag;
 
   @Column(name = "createdat")
   private LocalDateTime createdAt;
@@ -25,6 +28,14 @@ public class Note {
 
   public void setText(String text) {
     this.text = text;
+  }
+
+  public String getTag() {
+    return tag;
+  }
+
+  public void setTag(String tag) {
+    this.tag = tag;
   }
 
   public LocalDateTime getCreatedAt() {

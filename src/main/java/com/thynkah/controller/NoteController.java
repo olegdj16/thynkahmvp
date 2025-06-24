@@ -23,10 +23,10 @@ public class NoteController {
     return "index"; // renders templates/index.html
   }
 
-  @PostMapping("/notes")
-  public String saveNote(@ModelAttribute("noteForm") Note note) {
-    noteService.save(note);
-    return "redirect:/";
+  @PostMapping(value = "/notes", consumes = "application/json", produces = "application/json")
+  @ResponseBody
+  public Note saveNoteFromJson(@RequestBody Note note) {
+    return noteService.save(note);
   }
 
   @PostMapping("/notes/delete/{id}")

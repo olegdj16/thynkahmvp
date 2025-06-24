@@ -14,9 +14,10 @@ public class NoteService {
     this.repo = repo;
   }
 
-  public void save(Note note) {
+  public Note save(Note note) {
     note.setCreatedAt(note.getCreatedAt() == null ? java.time.LocalDateTime.now() : note.getCreatedAt());
     repo.save(note);
+    return note;
   }
 
   public List<Note> findAll() {

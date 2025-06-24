@@ -1,9 +1,7 @@
 package com.thynkah.controller;
 
 import com.thynkah.model.Note;
-import com.thynkah.model.Prompt;
 import com.thynkah.repository.NoteRepository;
-import com.thynkah.repository.PromptRepository;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -16,7 +14,6 @@ import java.util.Map;
 @RestController
 public class ChatController {
 
-
   private final NoteRepository noteRepository;
 
   public ChatController(NoteRepository noteRepository) {
@@ -25,24 +22,39 @@ public class ChatController {
 
   @PostMapping("/chat")
   public Map<String, String> chat(@RequestBody Map<String, String> body) {
-    String question = body.get("question");
+    String question = body.get("question").toLowerCase();
 
-    // Load previous notes from DB
     List<Note> notes = noteRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
 
-    // Join the text of all notes as context
-    StringBuilder context = new StringBuilder("Previous thoughts:\n");
+    String[] keywords = question.split("\\W+");
+    Note bestMatch = null;
+    int bestScore = 0;
+
     for (Note note : notes) {
-      context.append("- ").append(note.getText()).append("\n");
+      int score = 0;
+      String noteText = note.getText().toLowerCase();
+
+      for (String keyword : keywords) {
+        if (noteText.contains(keyword)) {
+          score++;
+        }
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = note;
+      }
     }
 
-    // Append current question
-    context.append("\nNow, here's what I think about your question: ").append(question);
-
-    // You can later call GPT/OpenAI or return mock response
     Map<String, String> response = new HashMap<>();
-    response.put("reply", context.toString());
+    if (bestMatch != null && bestScore > 0) {
+      response.put("reply", "This note might help:\n" + bestMatch.getText());
+    } else {
+      response.put("reply", "I looked through your notes, but couldn't find a clear answer.");
+    }
 
     return response;
   }
+
+
 }
