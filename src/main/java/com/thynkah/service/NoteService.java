@@ -18,9 +18,15 @@ public class NoteService {
   }
 
   public Note save(Note note) {
+    // Prevent saving if ID already exists in DB
+    if (note.getId() != null && repo.existsById(note.getId())) {
+      throw new IllegalArgumentException("Note with ID " + note.getId() + " already exists.");
+    }
+
     if (note.getCreatedAt() == null) {
       note.setCreatedAt(LocalDateTime.now());
     }
+
     return repo.save(note);
   }
 
@@ -29,28 +35,23 @@ public class NoteService {
   }
 
   public void delete(Long id) {
+    if (!repo.existsById(id)) {
+      throw new IllegalArgumentException("Cannot delete — Note not found with ID: " + id);
+    }
     repo.deleteById(id);
   }
 
   public Note updateText(Long id, String newText) {
-    Optional<Note> optional = repo.findById(id);
-    if (optional.isPresent()) {
-      Note note = optional.get();
-      note.setText(newText);
-      return repo.save(note);
-    } else {
-      throw new RuntimeException("Note not found with ID: " + id);
-    }
+    Note note = repo.findById(id)
+          .orElseThrow(() -> new RuntimeException("Note not found with ID: " + id));
+    note.setText(newText);
+    return repo.save(note);
   }
 
   public Note updateTag(Long id, String newTag) {
-    Optional<Note> optional = repo.findById(id);
-    if (optional.isPresent()) {
-      Note note = optional.get();
-      note.setTag(newTag);
-      return repo.save(note);
-    } else {
-      throw new RuntimeException("Note not found with ID: " + id);
-    }
+    Note note = repo.findById(id)
+          .orElseThrow(() -> new RuntimeException("Note not found with ID: " + id));
+    note.setTag(newTag);
+    return repo.save(note);
   }
 }

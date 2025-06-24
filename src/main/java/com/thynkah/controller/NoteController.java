@@ -9,8 +9,11 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Controller // ✅ changed from @RestController
 @CrossOrigin(origins = "*")
@@ -67,4 +70,21 @@ public class NoteController {
   public Note updateTag(@PathVariable Long id, @RequestBody Map<String, String> body) {
     return noteService.updateTag(id, body.get("tag"));
   }
+
+  @GetMapping("/tags")
+  @ResponseBody
+  public List<String> getAllTags() {
+    return noteRepository.findAll().stream()
+          .flatMap(note -> {
+            if (note.getTag() != null)
+              return Arrays.stream(note.getTag().split(",")).map(String::trim);
+            return Stream.empty();
+          })
+          .filter(tag -> !tag.isBlank())
+          .distinct()
+          .sorted()
+          .collect(Collectors.toList()); // ✅ compatible with Java 8+
+  }
+
+
 }

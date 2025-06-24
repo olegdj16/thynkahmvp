@@ -21,6 +21,7 @@
             border-radius: 12px;
             font-size: 0.85em;
             color: #333;
+            cursor: pointer;
         }
     </style>
 
@@ -157,40 +158,47 @@
             notes.forEach(n => {
                 const div = document.createElement("div");
                 div.className = "note-card";
+
                 const tags = (n.tag || "").split(",").map(t => t.trim()).filter(Boolean);
+                const tagHTML = tags.length
+                    ? `<div id="tag-display-${n.id}">
+                      ${tags.map(tag => `<span class="chip">${tag}</span>`).join(" ")}
+                   </div>`
+                    : `<div id="tag-display-${n.id}"><em style="color:#aaa;">No tags</em></div>`;
+
                 div.innerHTML = `
-              <div id="tag-display-${n.id}">
-                ${tags.map(tag => `<span class="chip">${tag}</span>`).join(" ")}
-              </div>
-              <input id="tag-input-${n.id}" value="${n.tag || ""}" style="display:none; width:100%" />
+                ${tagHTML}
+                <input id="tag-input-${n.id}" value="${n.tag || ""}" style="display:none; width:100%" />
 
-              <p id="text-display-${n.id}">${n.text}</p>
-              <textarea id="text-input-${n.id}" style="display:none;">${n.text}</textarea>
+                <p id="text-display-${n.id}">${n.text}</p>
+                <textarea id="text-input-${n.id}" style="display:none;">${n.text}</textarea>
 
-              <small style="color:#666;">🕒 ${new Date(n.createdAt).toLocaleString()}</small>
+                <small style="color:#666;">🕒 ${new Date(n.createdAt).toLocaleString()}</small>
 
-              <div class="note-actions" id="actions-${n.id}">
-                <button onclick="enableTextEdit(${n.id})">✏️</button>
-                <button onclick="enableTagEdit(${n.id})">🏷️</button>
-                <button onclick="showDeleteConfirm(${n.id})">🗑️</button>
-              </div>
+                <div class="note-actions" id="actions-${n.id}">
+                    <button onclick="enableTextEdit(${n.id})">✏️</button>
+                    <button onclick="enableTagEdit(${n.id})">🏷️</button>
+                    <button onclick="showDeleteConfirm(${n.id})">🗑️</button>
+                </div>
 
-              <div class="note-actions" id="edit-actions-${n.id}" style="display:none;">
-                <button onclick="submitEdits(${n.id})">💾</button>
-                <button onclick="cancelEdits(${n.id})">❌</button>
-              </div>
+                <div class="note-actions" id="edit-actions-${n.id}" style="display:none;">
+                    <button onclick="submitEdits(${n.id})">💾</button>
+                    <button onclick="cancelEdits(${n.id})">❌</button>
+                </div>
 
-              <div class="note-actions" id="confirm-delete-${n.id}" style="display:none;">
-                <button onclick="deleteNote(${n.id})">✔️</button>
-                <button onclick="cancelDelete(${n.id})">❌</button>
-              </div>
+                <div class="note-actions" id="confirm-delete-${n.id}" style="display:none;">
+                    <button onclick="deleteNote(${n.id})">✔️</button>
+                    <button onclick="cancelDelete(${n.id})">❌</button>
+                </div>
             `;
+
                 container.appendChild(div);
             });
         } catch (e) {
             console.error("Error loading notes:", e);
         }
     }
+
 
 
     function enableTextEdit(id) {
