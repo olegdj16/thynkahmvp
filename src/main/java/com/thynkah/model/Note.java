@@ -52,4 +52,18 @@ public class Note {
       createdAt = LocalDateTime.now();
     }
   }
+
+  @Lob
+  @Column(columnDefinition = "TEXT")
+  private String embedding;
+
+  public String getEmbedding() {
+    return embedding;
+  }
+
+  public void setEmbedding(String embedding) {
+    this.embedding = embedding;
+  }
+
+
 }
