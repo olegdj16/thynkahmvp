@@ -2,12 +2,14 @@ package com.thynkah.controller;
 
 import com.thynkah.model.Prompt;
 import com.thynkah.repository.PromptRepository;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/prompts")
+@RequestMapping("/api/prompts") // ✅ now under /api
+@CrossOrigin(origins = "*")
 public class PromptController {
 
   private final PromptRepository promptRepository;
@@ -16,13 +18,17 @@ public class PromptController {
     this.promptRepository = promptRepository;
   }
 
+  // ✅ Get all prompts
   @GetMapping
-  public List<Prompt> getAllPrompts() {
-    return promptRepository.findAll();
+  public ResponseEntity<List<Prompt>> getAllPrompts() {
+    List<Prompt> prompts = promptRepository.findAll();
+    return ResponseEntity.ok(prompts);
   }
 
+  // ✅ Save a new prompt
   @PostMapping
-  public Prompt savePrompt(@RequestBody Prompt prompt) {
-    return promptRepository.save(prompt);
+  public ResponseEntity<Prompt> savePrompt(@RequestBody Prompt prompt) {
+    Prompt saved = promptRepository.save(prompt);
+    return ResponseEntity.status(201).body(saved); // return HTTP 201
   }
 }

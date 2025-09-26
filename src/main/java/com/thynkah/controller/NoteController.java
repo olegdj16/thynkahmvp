@@ -5,18 +5,18 @@ import com.thynkah.repository.NoteRepository;
 import com.thynkah.service.NoteService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-@Controller // ✅ changed from @RestController
+@Controller
 @CrossOrigin(origins = "*")
+@RequestMapping("/api") // ✅ all JSON endpoints under /api/*
 public class NoteController {
 
   private final NoteService noteService;
@@ -28,7 +28,7 @@ public class NoteController {
     this.noteRepository = noteRepository;
   }
 
-  // ✅ Serve index.html with model attributes
+  // ✅ Render Thymeleaf template (HTML)
   @GetMapping({"/", "/index"})
   public String index(Model model) {
     model.addAttribute("notes", noteService.findAll());
@@ -36,45 +36,51 @@ public class NoteController {
     return "index"; // looks up templates/index.html
   }
 
-  // ✅ Save a new note (used by frontend JavaScript)
+  // ✅ Create a new note (JSON)
   @PostMapping(value = "/notes", consumes = "application/json", produces = "application/json")
   @ResponseBody
-  public Note saveNoteFromJson(@RequestBody Note note) {
-    return noteService.save(note);
+  public ResponseEntity<Note> saveNoteFromJson(@RequestBody Note note) {
+    Note saved = noteService.save(note);
+    return ResponseEntity.ok(saved);
   }
 
   // ✅ Fetch all notes as JSON
   @GetMapping("/notes")
   @ResponseBody
-  public List<Note> getAllNotes() {
-    return noteRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
+  public ResponseEntity<List<Note>> getAllNotes() {
+    List<Note> notes = noteRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
+    return ResponseEntity.ok(notes);
   }
 
-  // ✅ Delete a note by ID
+  // ✅ Delete a note
   @DeleteMapping("/notes/{id}")
   @ResponseBody
-  public void deleteNote(@PathVariable Long id) {
+  public ResponseEntity<Void> deleteNote(@PathVariable Long id) {
     noteService.delete(id);
+    return ResponseEntity.noContent().build();
   }
 
   // ✅ Update note text
   @PatchMapping("/notes/{id}/text")
   @ResponseBody
-  public Note updateText(@PathVariable Long id, @RequestBody Map<String, String> body) {
-    return noteService.updateText(id, body.get("text"));
+  public ResponseEntity<Note> updateText(@PathVariable Long id, @RequestBody Map<String, String> body) {
+    Note updated = noteService.updateText(id, body.get("text"));
+    return ResponseEntity.ok(updated);
   }
 
   // ✅ Update note tag
   @PatchMapping("/notes/{id}/tag")
   @ResponseBody
-  public Note updateTag(@PathVariable Long id, @RequestBody Map<String, String> body) {
-    return noteService.updateTag(id, body.get("tag"));
+  public ResponseEntity<Note> updateTag(@PathVariable Long id, @RequestBody Map<String, String> body) {
+    Note updated = noteService.updateTag(id, body.get("tag"));
+    return ResponseEntity.ok(updated);
   }
 
+  // ✅ Get distinct tags from all notes
   @GetMapping("/tags")
   @ResponseBody
-  public List<String> getAllTags() {
-    return noteRepository.findAll().stream()
+  public ResponseEntity<List<String>> getAllTags() {
+    List<String> tags = noteRepository.findAll().stream()
           .flatMap(note -> {
             if (note.getTag() != null)
               return Arrays.stream(note.getTag().split(",")).map(String::trim);
@@ -83,8 +89,8 @@ public class NoteController {
           .filter(tag -> !tag.isBlank())
           .distinct()
           .sorted()
-          .collect(Collectors.toList()); // ✅ compatible with Java 8+
+          .collect(Collectors.toList());
+
+    return ResponseEntity.ok(tags);
   }
-
-
 }
