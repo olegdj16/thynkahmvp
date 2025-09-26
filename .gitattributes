@@ -1,2 +1,14 @@
 /mvnw text eol=lf
 *.cmd text eol=crlf
+# .gitattributes
+*.java text eol=lf
+*.properties text eol=lf
+*.yml text eol=lf
+*.xml text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.md text eol=lf
+*.sh text eol=lf
+
+# Allow Windows executables/binaries
+*.bat text eol=crlf
