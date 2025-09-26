@@ -68,7 +68,7 @@
         const text = document.getElementById("note").value;
         const tag = document.getElementById("tag").value;
         if (!text.trim()) return;
-        await fetch("/notes", {
+        await fetch("/api/notes", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ text, tag }),
@@ -83,7 +83,7 @@
         const question = document.getElementById("question").value;
         if (!question.trim()) return;
 
-        const res = await fetch("/chat", {
+        const res = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ question }),
@@ -98,7 +98,7 @@
     async function savePrompt() {
         const prompt = document.getElementById("question").value.trim();
         if (!prompt) return;
-        await fetch("/prompts", {
+        await fetch("/api/prompts", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ prompt }),
@@ -107,7 +107,7 @@
     }
 
     async function loadSavedPrompts() {
-        const res = await fetch("/prompts");
+        const res = await fetch("/api/prompts");
         const prompts = await res.json();
         const dropdown = document.getElementById("savedPrompts");
         dropdown.innerHTML = '<option value="">🔽 Select a saved prompt</option>';
@@ -127,7 +127,7 @@
     }
 
     async function loadTagSuggestions() {
-        const res = await fetch("/tags");
+        const res = await fetch("/api/tags");
         const tags = await res.json();
         const container = document.getElementById("tagSuggestions");
         container.innerHTML = "";
@@ -148,7 +148,7 @@
 
     async function loadNotes() {
         try {
-            const res = await fetch("/notes");
+            const res = await fetch("/api/notes");
             if (!res.ok) throw new Error("Failed to fetch notes");
 
             const notes = await res.json();
