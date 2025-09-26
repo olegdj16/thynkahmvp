@@ -1,37 +1,90 @@
 package com.thynkah.controller;
 
 import com.thynkah.model.Note;
+import com.thynkah.repository.NoteRepository;
 import com.thynkah.service.NoteService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-@Controller
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+@Controller // ✅ changed from @RestController
+@CrossOrigin(origins = "*")
 public class NoteController {
 
   private final NoteService noteService;
+  private final NoteRepository noteRepository;
 
-  public NoteController(NoteService noteService) {
+  @Autowired
+  public NoteController(NoteService noteService, NoteRepository noteRepository) {
     this.noteService = noteService;
+    this.noteRepository = noteRepository;
   }
 
-  // This will serve index.html at root URL
+  // ✅ Serve index.html with model attributes
   @GetMapping({"/", "/index"})
   public String index(Model model) {
     model.addAttribute("notes", noteService.findAll());
     model.addAttribute("noteForm", new Note());
-    return "index"; // renders templates/index.html
+    return "index"; // looks up templates/index.html
   }
 
-  @PostMapping("/notes")
-  public String saveNote(@ModelAttribute("noteForm") Note note) {
-    noteService.save(note);
-    return "redirect:/";
+  // ✅ Save a new note (used by frontend JavaScript)
+  @PostMapping(value = "/notes", consumes = "application/json", produces = "application/json")
+  @ResponseBody
+  public Note saveNoteFromJson(@RequestBody Note note) {
+    return noteService.save(note);
   }
 
-  @PostMapping("/notes/delete/{id}")
-  public String deleteNote(@PathVariable Long id) {
+  // ✅ Fetch all notes as JSON
+  @GetMapping("/notes")
+  @ResponseBody
+  public List<Note> getAllNotes() {
+    return noteRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
+  }
+
+  // ✅ Delete a note by ID
+  @DeleteMapping("/notes/{id}")
+  @ResponseBody
+  public void deleteNote(@PathVariable Long id) {
     noteService.delete(id);
-    return "redirect:/";
   }
+
+  // ✅ Update note text
+  @PatchMapping("/notes/{id}/text")
+  @ResponseBody
+  public Note updateText(@PathVariable Long id, @RequestBody Map<String, String> body) {
+    return noteService.updateText(id, body.get("text"));
+  }
+
+  // ✅ Update note tag
+  @PatchMapping("/notes/{id}/tag")
+  @ResponseBody
+  public Note updateTag(@PathVariable Long id, @RequestBody Map<String, String> body) {
+    return noteService.updateTag(id, body.get("tag"));
+  }
+
+  @GetMapping("/tags")
+  @ResponseBody
+  public List<String> getAllTags() {
+    return noteRepository.findAll().stream()
+          .flatMap(note -> {
+            if (note.getTag() != null)
+              return Arrays.stream(note.getTag().split(",")).map(String::trim);
+            return Stream.empty();
+          })
+          .filter(tag -> !tag.isBlank())
+          .distinct()
+          .sorted()
+          .collect(Collectors.toList()); // ✅ compatible with Java 8+
+  }
+
+
 }

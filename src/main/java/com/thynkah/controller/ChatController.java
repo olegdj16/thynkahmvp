@@ -1,24 +1,44 @@
 package com.thynkah.controller;
 
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import com.thynkah.model.Note;
+import com.thynkah.service.NoteService;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @RestController
 public class ChatController {
 
+  private final NoteService noteService;
+
+  public ChatController(NoteService noteService) {
+    this.noteService = noteService;
+  }
+
   @PostMapping("/chat")
   public Map<String, String> chat(@RequestBody Map<String, String> body) {
     String question = body.get("question");
-    String response = generateFakeAnswer(question); // Simulate or connect to LLM/logic
+    Map<String, String> response = new HashMap<>();
 
-    return Map.of("reply", response); // ✅ Ensure the key is 'reply'
+    Note bestMatch = noteService.findMostRelevantNote(question);
+
+    if (bestMatch != null) {
+      response.put("reply", "🧠 Most relevant note:\n" + bestMatch.getText());
+    } else {
+      response.put("reply", "I couldn't find a matching note based on meaning. Try rephrasing?");
+    }
+
+    return response;
   }
 
-  private String generateFakeAnswer(String q) {
-    // For now, simulate:
-    return "Here's a thought: " + q;
+  @GetMapping("/ask")
+  @ResponseBody
+  public Note ask(@RequestParam String query) {
+    return noteService.findMostRelevantNote(query);
   }
+
+
 }
+
+

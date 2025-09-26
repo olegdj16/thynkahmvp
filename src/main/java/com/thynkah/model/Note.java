@@ -1,18 +1,69 @@
 package com.thynkah.model;
 
-import jakarta.persistence.*;
-import lombok.Data;
+import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Data
+@Table(name = "notes")  // ✅ Ensures correct table name is used
 public class Note {
+
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
   private String text;
+
   private String tag;
 
-  private LocalDateTime createdAt = LocalDateTime.now();
+  @Column(name = "createdat")
+  private LocalDateTime createdAt;
+
+  public Long getId() {
+    return id;
+  }
+
+  public String getText() {
+    return text;
+  }
+
+  public void setText(String text) {
+    this.text = text;
+  }
+
+  public String getTag() {
+    return tag;
+  }
+
+  public void setTag(String tag) {
+    this.tag = tag;
+  }
+
+  public LocalDateTime getCreatedAt() {
+    return createdAt;
+  }
+
+  public void setCreatedAt(LocalDateTime createdAt) {
+    this.createdAt = createdAt;
+  }
+
+  @PrePersist
+  protected void onCreate() {
+    if (createdAt == null) {
+      createdAt = LocalDateTime.now();
+    }
+  }
+
+  @Lob
+  @Column(columnDefinition = "TEXT")
+  private String embedding;
+
+  public String getEmbedding() {
+    return embedding;
+  }
+
+  public void setEmbedding(String embedding) {
+    this.embedding = embedding;
+  }
+
+
 }
