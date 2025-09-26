@@ -1,14 +1,50 @@
-/mvnw text eol=lf
-*.cmd text eol=crlf
-# .gitattributes
-*.java text eol=lf
-*.properties text eol=lf
-*.yml text eol=lf
-*.xml text eol=lf
-*.html text eol=lf
-*.css text eol=lf
-*.md text eol=lf
-*.sh text eol=lf
+# --- Core Git settings ---
+# Normalize all text files to LF in the repo
+* text=auto eol=lf
 
-# Allow Windows executables/binaries
-*.bat text eol=crlf
+# --- Project-specific overrides ---
+
+# Maven wrapper scripts
+/mvnw       text eol=lf
+/mvnw.cmd   text eol=crlf
+
+# Source code (always LF)
+*.java      text eol=lf
+
+# Spring Boot configuration
+*.properties text eol=lf
+*.yml        text eol=lf
+*.yaml       text eol=lf
+*.xml        text eol=lf
+
+# Web templates & static resources
+*.html      text eol=lf
+*.css       text eol=lf
+*.js        text eol=lf
+*.ts        text eol=lf
+
+# Documentation
+*.md        text eol=lf
+
+# Shell scripts (must stay LF for Linux/Mac)
+*.sh        text eol=lf
+
+# Windows scripts (must stay CRLF)
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+
+# --- Binary files (no line ending changes) ---
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.jar binary
+*.class binary
+*.exe binary
+*.dll binary
+*.so binary
+*.zip binary
+*.tar binary
+*.gz binary
