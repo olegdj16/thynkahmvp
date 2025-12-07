@@ -10,6 +10,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -85,6 +86,35 @@ public class NoteController {
           .sorted()
           .collect(Collectors.toList()); // ✅ compatible with Java 8+
   }
+
+    // Ask a question -> AI answer (using your notes)
+    @PostMapping(value = "/ask", consumes = "application/json", produces = "application/json")
+    @ResponseBody
+    public Map<String, Object> ask(@RequestBody Map<String, String> body) {
+        String question = body.get("question");
+
+        // AI-generated answer, with "today first, else recent" logic inside
+        String answer = noteService.answerQuestion(question);
+
+        // Optional: expose the note that was used, for "Most relevant note" display
+        Note bestNote = noteService.findMostRelevantNote(question);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("answer", answer);
+
+        if (bestNote != null) {
+            result.put("noteId", bestNote.getId());
+            result.put("noteText", bestNote.getText());
+            result.put("noteCreatedAt", bestNote.getCreatedAt());
+            result.put("noteTag", bestNote.getTag());
+        } else {
+            result.put("noteId", null);
+            result.put("noteText", null);
+        }
+
+        return result;
+    }
+
 
 
 }

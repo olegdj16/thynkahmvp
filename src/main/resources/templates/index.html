@@ -48,7 +48,22 @@
     </select>
 </div>
 
-<p id="response"></p>
+<!-- updated 12.04.2025 -->
+
+<!--<p id="response"></p>-->
+
+<div style="margin-top: 0.5rem;">
+    <strong>Answer:</strong>
+    <p id="response"></p>
+</div>
+
+<div style="margin-top: 0.5rem;">
+    <strong>Most relevant note:</strong>
+    <p id="mostRelevantNote"></p>
+</div>
+
+<!-- end updated 12.04.2025 -->
+
 
 <hr />
 
@@ -79,21 +94,72 @@
         loadTagSuggestions();
     }
 
+    <!-- updated 12.04.2025 -->
+
+    // async function askQuestion() {
+    //     const question = document.getElementById("question").value;
+    //     if (!question.trim()) return;
+    //
+    //     const res = await fetch("/chat", {
+    //         method: "POST",
+    //         headers: { "Content-Type": "application/json" },
+    //         body: JSON.stringify({ question }),
+    //     });
+    //     const data = await res.json();
+    //     document.getElementById("response").innerText = data.reply;
+    //
+    //     // HIDE saved prompts
+    //     document.getElementById("savedPrompts").style.display = "none";
+    // }
+
     async function askQuestion() {
-        const question = document.getElementById("question").value;
-        if (!question.trim()) return;
+        const questionEl = document.getElementById("question");
+        const answerEl = document.getElementById("response");
+        const noteEl = document.getElementById("mostRelevantNote");
 
-        const res = await fetch("/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ question }),
-        });
-        const data = await res.json();
-        document.getElementById("response").innerText = data.reply;
+        const question = (questionEl.value || "").trim();
+        if (!question) {
+            answerEl.innerText = "Please type a question first.";
+            return;
+        }
 
-        // HIDE saved prompts
-        document.getElementById("savedPrompts").style.display = "none";
+        answerEl.innerText = "Thinking...";
+        noteEl.innerText = "";
+
+        try {
+            const res = await fetch("/ask", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ question }),
+            });
+
+            if (!res.ok) {
+                answerEl.innerText = "Server error: " + res.status;
+                return;
+            }
+
+            const data = await res.json();
+
+            // AI-generated answer from NoteService.answerQuestion(...)
+            answerEl.innerText = data.answer || "I couldn't generate an answer.";
+
+            // Underneath, show which note was used (if any)
+            if (data.noteText) {
+                noteEl.innerText = data.noteText;
+            } else {
+                noteEl.innerText = "No relevant note found.";
+            }
+
+            // HIDE saved prompts (keep your existing behavior)
+            document.getElementById("savedPrompts").style.display = "none";
+        } catch (e) {
+            console.error(e);
+            answerEl.innerText = "Error talking to the server.";
+        }
     }
+
+    <!-- end updated 12.04.2025 -->
+
 
     async function savePrompt() {
         const prompt = document.getElementById("question").value.trim();
