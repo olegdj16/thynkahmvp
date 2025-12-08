@@ -312,4 +312,17 @@ public class NoteService {
         return repo.findByCreatedAtBetween(start, end);
     }
 
+    public String answerQuestionForDate(String question, LocalDate date) {
+        // reuse your date helper
+        List<Note> contextNotes = findNotesForDate(date);
+
+        // If no notes on that day, just fall back to normal behavior
+        if (contextNotes == null || contextNotes.isEmpty()) {
+            return answerQuestion(question);
+        }
+
+        // Use ONLY that day's notes as context
+        return callChatModel(question, contextNotes);
+    }
+
 }

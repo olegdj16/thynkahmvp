@@ -81,22 +81,50 @@
 
 
 
-
-
-
 <h3>📋 Your Notes</h3>
+
+<div style="margin-bottom:0.5rem;">
+    <label for="noteSearch">Search notes (text or tags):</label>
+    <input type="text" id="noteSearch" placeholder="Type to filter..." oninput="applySearchFilter()" />
+</div>
 
 <div id="dayFilter" style="margin-bottom: 0.5rem;">
     <label for="day">View notes for:</label>
     <input type="date" id="day" />
     <button onclick="showNotesForDay()">Show</button>
     <button onclick="clearDayFilter()">Show all</button>
+    <button onclick="askAboutSelectedDay()">Ask about this day</button>
 </div>
+
+<div style="margin-top:0.5rem;">
+    <strong>Day summary:</strong>
+    <p id="daySummary"></p>
+</div>
+<div style="margin-top:0.5rem;">
+    <strong>Most relevant note (that day):</strong>
+    <p id="dayMostRelevant"></p>
+</div>
+
+
 
 <div id="notesList"></div>
 
 <script th:inline="javascript">
     /*<![CDATA[*/
+    let allNotes = []; // notes currently loaded (all or for a specific day)
+
+    /*part of highlight function*/
+    function escapeRegExp(str) {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+
+    function highlightText(text, query) {
+        if (!query) return text || "";
+        const pattern = new RegExp("(" + escapeRegExp(query) + ")", "gi");
+        return (text || "").replace(pattern, "<mark>$1</mark>");
+    }
+    /*part of highlight function*/
+
     async function uploadNote() {
         const text = document.getElementById("note").value;
         const tag = document.getElementById("tag").value;
@@ -112,7 +140,7 @@
         loadTagSuggestions();
     }
 
-    <!-- updated 12.04.2025 -->
+    /*updated 12.04.2025 */
 
     // async function askQuestion() {
     //     const question = document.getElementById("question").value;
@@ -176,7 +204,7 @@
         }
     }
 
-    <!-- end updated 12.04.2025 -->
+    /*end updated 12.04.2025 */
 
 
     async function savePrompt() {
@@ -230,9 +258,11 @@
         });
     }
 
-    function renderNotes(notes) {
+    function renderNotes(notes, query) {
         const container = document.getElementById("notesList");
         container.innerHTML = "";
+
+        const q = (query || "").trim();  // current search string
 
         notes.forEach(n => {
             const div = document.createElement("div");
@@ -241,17 +271,21 @@
             const tags = (n.tag || "").split(",").map(t => t.trim()).filter(Boolean);
             const tagHTML = tags.length
                 ? `<div id="tag-display-${n.id}">
-                   ${tags.map(tag => `<span class="chip">${tag}</span>`).join(" ")}
+                   ${tags
+                    .map(tag => `<span class="chip">${highlightText(tag, q)}</span>`) //part of highlight function
+                    .join(" ")}
                </div>`
                 : `<div id="tag-display-${n.id}">
                    <em style="color:#aaa;">No tags</em>
                </div>`;
 
+            const highlightedText = highlightText(n.text || "", q); //part of highlight function
+
             div.innerHTML = `
             ${tagHTML}
             <input id="tag-input-${n.id}" value="${n.tag || ""}" style="display:none; width:100%" />
 
-            <p id="text-display-${n.id}">${n.text}</p>
+            <p id="text-display-${n.id}">${highlightedText}</p>
             <textarea id="text-input-${n.id}" style="display:none;">${n.text}</textarea>
 
             <small style="color:#666;">🕒 ${new Date(n.createdAt).toLocaleString()}</small>
@@ -277,12 +311,14 @@
         });
     }
 
+
     async function loadNotes() {
         try {
             const res = await fetch("/notes");
             if (!res.ok) throw new Error("Failed to fetch notes");
             const notes = await res.json();
-            renderNotes(notes);
+            allNotes = notes;
+            applySearchFilter(); // will call renderNotes(...) with current search
         } catch (e) {
             console.error("Error loading notes:", e);
         }
@@ -299,17 +335,100 @@
             const res = await fetch(`/notes/by-date?date=${encodeURIComponent(date)}`);
             if (!res.ok) throw new Error("Failed to fetch notes for date");
             const notes = await res.json();
-            renderNotes(notes);
+            allNotes = notes;
+            applySearchFilter(); // search within that day
         } catch (e) {
             console.error("Error loading notes for date:", e);
         }
     }
+
+
 
     function clearDayFilter() {
         const dayInput = document.getElementById("day");
         dayInput.value = "";
         loadNotes();
     }
+
+
+    function applySearchFilter() {
+        const searchInput = document.getElementById("noteSearch");
+        const query = (searchInput ? searchInput.value : "").trim().toLowerCase();
+
+        if (!query) {
+            // no search → show all loaded notes, no highlight
+            renderNotes(allNotes, "");
+            return;
+        }
+
+        const filtered = allNotes.filter(n => {
+            const text = (n.text || "").toLowerCase();
+            const tags = (n.tag || "").toLowerCase();
+            return text.includes(query) || tags.includes(query);
+        });
+
+        renderNotes(filtered, query);
+    }
+
+    function filterByTag(tag) {
+        const searchInput = document.getElementById("noteSearch");
+        if (searchInput) {
+            searchInput.value = tag;
+        }
+        applySearchFilter();
+    }
+
+
+
+
+
+    async function askAboutSelectedDay() {
+        const dayInput = document.getElementById("day");
+        const date = (dayInput.value || "").trim();
+
+        const answerEl = document.getElementById("daySummary");
+        const noteEl   = document.getElementById("dayMostRelevant");
+
+        if (!date) {
+            answerEl.innerText = "Select a day first.";
+            noteEl.innerText = "";
+            return;
+        }
+
+        answerEl.innerText = "Thinking...";
+        noteEl.innerText   = "";
+
+        try {
+            const res = await fetch("/ask/day", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ date })
+            });
+
+            if (!res.ok) {
+                answerEl.innerText = "Server error: " + res.status;
+                return;
+            }
+
+            const data = await res.json();
+            answerEl.innerText = data.answer || "I couldn't generate a summary.";
+
+            if (data.noteText) {
+                noteEl.innerText = data.noteText;
+            } else {
+                noteEl.innerText = "No single note stood out for that day.";
+            }
+
+            // ensure the list below also shows that day's notes
+            await showNotesForDay();
+
+        } catch (e) {
+            console.error(e);
+            answerEl.innerText = "Error talking to the server.";
+        }
+    }
+
+
 
 
 
@@ -378,7 +497,17 @@
         loadNotes();
         loadTagSuggestions();
         loadSavedPrompts();
+
+        const container = document.getElementById("notesList");
+        container.addEventListener("click", function (e) {
+            const chip = e.target.closest(".chip");
+            if (!chip) return;
+
+            const tagText = (chip.textContent || "").trim();
+            filterByTag(tagText);
+        });
     };
+
     /*]]>*/
 </script>
 

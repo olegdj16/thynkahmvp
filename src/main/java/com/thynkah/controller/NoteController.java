@@ -11,10 +11,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -125,6 +122,53 @@ public class NoteController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
         return noteService.findNotesForDate(date);
+    }
+
+
+
+    @PostMapping(value = "/ask/day", consumes = "application/json", produces = "application/json")
+    @ResponseBody
+    public Map<String, Object> askForDay(@RequestBody Map<String, String> body) {
+
+        String dateStr  = body.get("date");
+        String question = body.get("question"); // optional
+
+        if (dateStr == null || dateStr.isBlank()) {
+            throw new IllegalArgumentException("date is required (YYYY-MM-DD)");
+        }
+
+        LocalDate date = LocalDate.parse(dateStr); // assumes ISO (YYYY-MM-DD)
+
+        if (question == null || question.isBlank()) {
+            question = "Summarize everything important I did, thought, or noted on " + dateStr + ".";
+        }
+
+        String answer = noteService.answerQuestionForDate(question, date);
+
+        // Optional: also return the top “most relevant note” for that specific day
+        List<Note> notesForDay = noteService.findNotesForDate(date);
+        Note best = null;
+        if (!notesForDay.isEmpty()) {
+            // simple heuristic: latest note on that day
+            best = notesForDay.stream()
+                    .max(Comparator.comparing(Note::getCreatedAt))
+                    .orElse(null);
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("answer", answer);
+
+        if (best != null) {
+            result.put("noteId", best.getId());
+            result.put("noteText", best.getText());
+            result.put("noteCreatedAt", best.getCreatedAt());
+            result.put("noteTag", best.getTag());
+        } else {
+            result.put("noteId", null);
+            result.put("noteText", null);
+        }
+
+        return result;
     }
 
 }
