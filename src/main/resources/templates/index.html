@@ -6,6 +6,26 @@
     <link rel="stylesheet" th:href="@{/css/style.css}">
 
     <style>
+        .note-card-highlight {
+            background-color: #fff7c2; /* soft yellow */
+            transition: background-color 0.8s ease;
+        }
+
+        /* simple toast */
+        #toast {
+            position: fixed;
+            bottom: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: #fff;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            display: none;
+            z-index: 9999;
+        }
+
         .note-card {
             border: 1px solid #ccc;
             border-radius: 6px;
@@ -267,6 +287,8 @@
         notes.forEach(n => {
             const div = document.createElement("div");
             div.className = "note-card";
+            div.id = `note-${n.id}`;   // <— for later highlighting
+
 
             const tags = (n.tag || "").split(",").map(t => t.trim()).filter(Boolean);
             const tagHTML = tags.length
@@ -282,34 +304,93 @@
             const highlightedText = highlightText(n.text || "", q); //part of highlight function
 
             div.innerHTML = `
-            ${tagHTML}
-            <input id="tag-input-${n.id}" value="${n.tag || ""}" style="display:none; width:100%" />
+    ${tagHTML}
+    <input id="tag-input-${n.id}" value="${n.tag || ""}" style="display:none; width:100%" />
 
-            <p id="text-display-${n.id}">${highlightedText}</p>
-            <textarea id="text-input-${n.id}" style="display:none;">${n.text}</textarea>
+    <p id="text-display-${n.id}">${highlightedText}</p>
+    <textarea id="text-input-${n.id}" style="display:none;">${n.text}</textarea>
 
-            <small style="color:#666;">🕒 ${new Date(n.createdAt).toLocaleString()}</small>
+    <small style="color:#666;">🕒 ${new Date(n.createdAt).toLocaleString()}</small>
 
-            <div class="note-actions" id="actions-${n.id}">
-                <button onclick="enableTextEdit(${n.id})">✏️</button>
-                <button onclick="enableTagEdit(${n.id})">🏷️</button>
-                <button onclick="showDeleteConfirm(${n.id})">🗑️</button>
-            </div>
+<div class="note-actions" id="actions-${n.id}">
+    <button onclick="enableTextEdit(${n.id})">✏️</button>
+    <button onclick="enableTagEdit(${n.id})">🏷️</button>
+    <button onclick="askNoteCombined(${n.id})">🧠</button>
+    <button onclick="showDeleteConfirm(${n.id})">🗑️</button>
+</div>
 
-            <div class="note-actions" id="edit-actions-${n.id}" style="display:none;">
-                <button onclick="submitEdits(${n.id})">💾</button>
-                <button onclick="cancelEdits(${n.id})">❌</button>
-            </div>
+    <div class="note-actions" id="edit-actions-${n.id}" style="display:none;">
+        <button onclick="submitEdits(${n.id})">💾</button>
+        <button onclick="cancelEdits(${n.id})">❌</button>
+    </div>
 
-            <div class="note-actions" id="confirm-delete-${n.id}" style="display:none;">
-                <button onclick="deleteNote(${n.id})">✔️</button>
-                <button onclick="cancelDelete(${n.id})">❌</button>
-            </div>
-        `;
+    <div class="note-actions" id="confirm-delete-${n.id}" style="display:none;">
+        <button onclick="deleteNote(${n.id})">✔️</button>
+        <button onclick="cancelDelete(${n.id})">❌</button>
+    </div>
 
+<div id="note-ai-${n.id}" style="margin-top:0.5rem; font-size:0.9em; color:#333;"></div>
+
+<button id="note-ai-save-${n.id}"
+        style="display:none; margin-top:0.25rem; font-size:0.8em;"
+        onclick="openAiSavePanel(${n.id})">
+    Save AI as note
+</button>
+
+<div id="note-ai-panel-${n.id}"
+     style="display:none; margin-top:0.5rem; border-top:1px solid #ddd; padding-top:0.5rem; font-size:0.85em;">
+    <div style="margin-bottom:0.25rem;">
+        <label>
+            <input type="radio" name="ai-type-${n.id}" value="both">
+            Both
+        </label>
+        <label>
+            <input type="radio" name="ai-type-${n.id}" value="summary" checked>
+            Summary
+        </label>
+        <label>
+            <input type="radio" name="ai-type-${n.id}" value="tasks">
+            Tasks
+        </label>
+    </div>
+
+    <label>Tags:</label>
+    <input type="text" id="note-ai-tags-${n.id}" style="width:100%; margin-bottom:0.25rem;" />
+
+    <label>Note text:</label>
+    <textarea id="note-ai-text-${n.id}" rows="4" style="width:100%;"></textarea>
+
+    <div style="margin-top:0.25rem;">
+        <button onclick="confirmSaveAiNote(${n.id})">Save</button>
+        <button onclick="cancelSaveAiNote(${n.id})">Cancel</button>
+    </div>
+</div>
+
+`;
             container.appendChild(div);
         });
     }
+
+    function openAiSavePanel(id) {
+        const aiDiv   = document.getElementById(`note-ai-${id}`);
+        const panel   = document.getElementById(`note-ai-panel-${id}`);
+        const tagsInp = document.getElementById(`note-ai-tags-${id}`);
+        const textInp = document.getElementById(`note-ai-text-${id}`);
+
+        if (!aiDiv || !panel || !tagsInp || !textInp) return;
+
+        const aiText = (aiDiv.innerText || "").trim();
+        textInp.value = aiText;
+        tagsInp.value = "ai"; // or "ai, summary", etc.
+
+        panel.style.display = "block";
+    }
+
+    function cancelSaveAiNote(id) {
+        const panel = document.getElementById(`note-ai-panel-${id}`);
+        if (panel) panel.style.display = "none";
+    }
+
 
 
     async function loadNotes() {
@@ -377,6 +458,119 @@
         }
         applySearchFilter();
     }
+
+
+
+
+    async function confirmSaveAiNote(id) {
+        const panel   = document.getElementById(`note-ai-panel-${id}`);
+        const tagsInp = document.getElementById(`note-ai-tags-${id}`);
+        const textInp = document.getElementById(`note-ai-text-${id}`);
+        if (!panel || !tagsInp || !textInp) return;
+
+        const text = (textInp.value || "").trim();
+        const tag  = (tagsInp.value || "").trim();
+        if (!text) return;
+
+        try {
+            const res = await fetch("/notes", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text, tag })
+            });
+
+            if (!res.ok) {
+                console.error("Save failed:", res.status);
+                showToast("Failed to save AI note.");
+                return;
+            }
+
+            const saved = await res.json(); // Note object with id
+
+            panel.style.display = "none";
+            await loadNotes();
+            await loadTagSuggestions();
+
+            showToast("AI note saved.");
+            if (saved && saved.id) {
+                highlightNote(saved.id);
+            }
+        } catch (e) {
+            console.error(e);
+            showToast("Error while saving AI note.");
+        }
+    }
+
+
+
+
+
+    async function askNoteCombined(id) {
+        const prompt =
+            "First, summarize this note briefly in 2–3 sentences. " +
+            "Then, on a new line, list ONLY actionable tasks as a bulleted checklist. " +
+            "Use '- [ ] ' at the start of each task bullet. " +
+            "If there are no actionable tasks, say 'No actionable tasks found.'";
+
+        await askNoteWithPrompt(id, prompt);
+    }
+
+
+    async function askNoteWithPrompt(id, question) {
+        const container = document.getElementById(`note-ai-${id}`);
+        const saveBtn   = document.getElementById(`note-ai-save-${id}`);
+        if (!container) return;
+
+        container.innerText = "Thinking...";
+        if (saveBtn) saveBtn.style.display = "none";
+
+        try {
+            const res = await fetch(`/ask/note/${id}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ question })
+            });
+
+            if (!res.ok) {
+                container.innerText = "Server error: " + res.status;
+                return;
+            }
+
+            const data = await res.json();
+            const answer = data.answer || "I couldn't generate anything for this note.";
+            container.innerText = answer;
+
+            if (saveBtn && answer.trim()) {
+                saveBtn.style.display = "inline-block";
+            }
+        } catch (e) {
+            console.error(e);
+            container.innerText = "Error talking to the server.";
+        }
+    }
+
+    function showToast(message) {
+        const toast = document.getElementById("toast");
+        if (!toast) return;
+
+        toast.innerText = message;
+        toast.style.display = "block";
+
+        setTimeout(() => {
+            toast.style.display = "none";
+        }, 2000); // 2 seconds
+    }
+
+    function highlightNote(id) {
+        const el = document.getElementById(`note-${id}`);
+        if (!el) return;
+
+        el.classList.add("note-card-highlight");
+        setTimeout(() => {
+            el.classList.remove("note-card-highlight");
+        }, 1500); // highlight lasts 1.5 seconds
+    }
+
 
 
 
@@ -511,5 +705,7 @@
     /*]]>*/
 </script>
 
+
+<div id="toast"></div>
 </body>
 </html>

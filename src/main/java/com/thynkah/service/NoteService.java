@@ -325,4 +325,17 @@ public class NoteService {
         return callChatModel(question, contextNotes);
     }
 
+    public String answerQuestionForNote(String question, Long noteId) {
+        Note note = repo.findById(noteId)
+                .orElseThrow(() -> new RuntimeException("Note not found with ID: " + noteId));
+
+        List<Note> context = Collections.singletonList(note);
+
+        if (question == null || question.trim().isEmpty()) {
+            question = "Summarize this note briefly and extract any explicit tasks or plans as bullet points.";
+        }
+
+        return callChatModel(question, context);
+    }
+
 }

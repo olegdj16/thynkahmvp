@@ -171,4 +171,20 @@ public class NoteController {
         return result;
     }
 
+    @PostMapping(value = "/ask/note/{id}", consumes = "application/json", produces = "application/json")
+    @ResponseBody
+    public Map<String, Object> askForNote(
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, String> body) {
+
+        String question = (body != null) ? body.get("question") : null;
+
+        String answer = noteService.answerQuestionForNote(question, id);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("answer", answer);
+        return result;
+    }
+
+
 }
