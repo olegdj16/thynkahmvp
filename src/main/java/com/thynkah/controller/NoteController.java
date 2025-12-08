@@ -5,10 +5,12 @@ import com.thynkah.repository.NoteRepository;
 import com.thynkah.service.NoteService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -115,6 +117,14 @@ public class NoteController {
         return result;
     }
 
-
+    // inside NoteController
+    @GetMapping("/notes/by-date")
+    @ResponseBody
+    public List<Note> getNotesByDate(
+            @RequestParam("date")
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        return noteService.findNotesForDate(date);
+    }
 
 }

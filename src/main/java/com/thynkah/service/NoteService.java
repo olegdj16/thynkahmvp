@@ -304,4 +304,12 @@ public class NoteService {
             return "There was an error talking to the AI service.";
         }
     }
+
+    // inside NoteService
+    public List<Note> findNotesForDate(LocalDate date) {
+        LocalDateTime start = date.atStartOfDay();
+        LocalDateTime end   = date.plusDays(1).atStartOfDay().minusNanos(1);
+        return repo.findByCreatedAtBetween(start, end);
+    }
+
 }
