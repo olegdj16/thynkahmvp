@@ -139,13 +139,15 @@
     <p id="dayMostRelevant"></p>
 </div>
 
-
-
+<div id="notesPager" style="margin-bottom:0.5rem;"></div>
 <div id="notesList"></div>
 
 <script th:inline="javascript">
     /*<![CDATA[*/
     let allNotes = []; // notes currently loaded (all or for a specific day)
+    let currentPage = 0;
+    let pageSize = 10;
+    let totalPages = 1;
 
     /*part of highlight function*/
     function escapeRegExp(str) {
@@ -440,15 +442,20 @@
 
     async function loadNotes() {
         try {
-            const res = await fetch("/notes");
-            if (!res.ok) throw new Error("Failed to fetch notes");
-            const notes = await res.json();
-            allNotes = notes;
-            applySearchFilter(); // will call renderNotes(...) with current search
+            const res = await fetch(`/notes/page?page=${currentPage}&size=${pageSize}`);
+            if (!res.ok) throw new Error("Failed to fetch notes page");
+            const page = await res.json();
+
+            allNotes = page.content;
+            totalPages = page.totalPages;
+
+            applySearchFilter();
+            renderPager();
         } catch (e) {
             console.error("Error loading notes:", e);
         }
     }
+
 
     async function showNotesForDay() {
         const dayInput = document.getElementById("day");
@@ -468,14 +475,11 @@
         }
     }
 
-
-
     function clearDayFilter() {
         const dayInput = document.getElementById("day");
         dayInput.value = "";
         loadNotes();
     }
-
 
     function applySearchFilter() {
         const searchInput = document.getElementById("noteSearch");
@@ -503,9 +507,6 @@
         }
         applySearchFilter();
     }
-
-
-
 
     async function confirmSaveAiNote(id) {
         const panel   = document.getElementById(`note-ai-panel-${id}`);
@@ -546,7 +547,6 @@
         }
     }
 
-
     function getTextarea() {
         return document.getElementById("note");
     }
@@ -579,6 +579,96 @@
         ta.selectionStart = start + prefix.length;
         ta.selectionEnd   = end + prefix.length;
     }
+
+    function renderPager() {
+        const el = document.getElementById("notesPager");
+        if (!el) return;
+
+        const windowSize = 5; // change to 3 if you want
+        const total = Math.max(totalPages, 1);
+        const current = currentPage; // 0-based
+
+        // Compute start/end of window around current page
+        const half = Math.floor(windowSize / 2);
+        let start = Math.max(0, current - half);
+        let end = Math.min(total - 1, start + windowSize - 1);
+        start = Math.max(0, end - windowSize + 1);
+
+        // Build page buttons
+        let pagesHtml = "";
+        for (let i = start; i <= end; i++) {
+            const active = i === current;
+            pagesHtml += `
+  <button
+    ${active ? "disabled" : ""}
+    onclick="goToPage(${i})"
+    style="${
+                active
+                    ? "font-weight:bold; background:#FF6F61; color:#fff; border:1px solid #FF6F61;"
+                    : ""
+            }">
+    ${i + 1}
+  </button>
+`;
+        }
+
+        el.innerHTML = `
+    <button ${current <= 0 ? "disabled" : ""} onclick="prevPage()">Prev</button>
+
+    ${start > 0 ? `<button onclick="goToPage(0)">1</button><span>...</span>` : ""}
+
+    ${pagesHtml}
+
+    ${end < total - 1 ? `<span>...</span><button onclick="goToPage(${total - 1})">${total}</button>` : ""}
+
+    <button ${current >= total - 1 ? "disabled" : ""} onclick="nextPage()">Next</button>
+
+    <span style="margin-left:0.75rem;">Page ${current + 1} / ${total}</span>
+
+    <span style="margin-left:0.75rem;">
+      Jump:
+      <input id="pageJump"
+             type="number"
+             min="1"
+             max="${total}"
+             style="width:70px;"
+             placeholder="#"
+             onkeydown="onJumpKey(event)" />
+      <button onclick="jumpToPage()">Go</button>
+    </span>
+  `;
+    }
+
+    function goToPage(pageIndex) {
+        const total = Math.max(totalPages, 1);
+        const safe = Math.min(Math.max(pageIndex, 0), total - 1);
+        if (safe === currentPage) return;
+        currentPage = safe;
+        loadNotes();
+    }
+
+    function jumpToPage() {
+        const input = document.getElementById("pageJump");
+        if (!input) return;
+
+        const total = Math.max(totalPages, 1);
+        const val = parseInt(input.value, 10);
+        if (Number.isNaN(val)) return;
+
+        // user enters 1-based page number
+        const targetIndex = Math.min(Math.max(val, 1), total) - 1;
+        goToPage(targetIndex);
+    }
+
+    function onJumpKey(e) {
+        if (e.key === "Enter") jumpToPage();
+    }
+
+
+    function prevPage() { goToPage(currentPage - 1); }
+    function nextPage() { goToPage(currentPage + 1); }
+
+
 
 
 

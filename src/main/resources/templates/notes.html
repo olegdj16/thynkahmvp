@@ -8,7 +8,7 @@
 <body>
 <h1>🧠 Thynkah -- Notes</h1>
 
-<form th:action="@{/notes}" th:object="${noteForm}" method="post">
+<form th:action="@{/notes/view}" th:object="${noteForm}" method="post">
     <textarea th:field="*{text}" placeholder="Paste your journal entry..."></textarea><br>
     <input type="text" th:field="*{tag}" placeholder="Tags (comma-separated)" /><br>
     <button type="submit">Save Note</button>
@@ -17,6 +17,23 @@
 <hr/>
 
 <h3>📓 Saved Notes</h3>
+
+<div class="pagination">
+    <span th:text="'Notes: ' + ${notesPage.totalElements}"></span>
+
+    <a th:if="${notesPage.hasPrevious()}"
+       th:href="@{/notes/view(page=${notesPage.number - 1}, size=${size})}">
+        Prev
+    </a>
+
+    <span th:text="'Page ' + (${notesPage.number + 1}) + ' / ' + ${notesPage.totalPages}"></span>
+
+    <a th:if="${notesPage.hasNext()}"
+       th:href="@{/notes/view(page=${notesPage.number + 1}, size=${size})}">
+        Next
+    </a>
+</div>
+
 <div th:each="note : ${notes}" class="note-card">
     <p><strong>Text:</strong>
         <span class="note-text" th:utext="${note.renderedHtml}"></span>

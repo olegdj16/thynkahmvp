@@ -6,6 +6,9 @@ import com.thynkah.model.Note;
 import com.thynkah.repository.NoteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -34,6 +37,15 @@ public class NoteService {
 
     private static final String EMBEDDING_URL = "https://api.openai.com/v1/embeddings";
     private static final String CHAT_URL      = "https://api.openai.com/v1/chat/completions";
+
+
+
+    public Page<Note> getNotesPage(int page, int size) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 200); // guardrail
+        Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return repo.findAll(pageable);
+    }
 
     @Autowired
     public NoteService(NoteRepository repo,
