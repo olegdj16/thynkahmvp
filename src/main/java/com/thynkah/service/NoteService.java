@@ -6,8 +6,10 @@ import com.thynkah.model.Note;
 import com.thynkah.repository.NoteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -15,7 +17,7 @@ import org.springframework.web.client.RestTemplate;
 import javax.annotation.PostConstruct;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -23,7 +25,7 @@ import java.util.stream.Collectors;
 public class NoteService {
 
     @Value("${openai.api.key}")
-    private String OPENAI_API_KEY;
+    private String openAiApiKey;          // <== THIS is the injected API key
 
     private final NoteRepository repo;
     private final EmbeddingService embeddingService;
@@ -34,7 +36,8 @@ public class NoteService {
     private static final String CHAT_URL      = "https://api.openai.com/v1/chat/completions";
 
     @Autowired
-    public NoteService(NoteRepository repo, EmbeddingService embeddingService) {
+    public NoteService(NoteRepository repo,
+                       EmbeddingService embeddingService) {
         this.repo = repo;
         this.embeddingService = embeddingService;
         this.restTemplate = new RestTemplate();
@@ -42,7 +45,7 @@ public class NoteService {
 
     @PostConstruct
     public void init() {
-        if (OPENAI_API_KEY == null || OPENAI_API_KEY.isEmpty()) {
+        if (openAiApiKey == null || openAiApiKey.isEmpty()) {
             throw new IllegalStateException("OpenAI API key is not configured!");
         }
     }
@@ -96,7 +99,7 @@ public class NoteService {
             requestBody.put("model", "text-embedding-3-small");
 
             HttpHeaders headers = new HttpHeaders();
-            headers.set("Authorization", "Bearer " + OPENAI_API_KEY);
+            headers.set("Authorization", "Bearer " + openAiApiKey);
             headers.set("Content-Type", "application/json");
 
             HttpEntity<Map<String, Object>> request =
@@ -156,154 +159,273 @@ public class NoteService {
 
     /* ---------- “Most relevant note” (single) ---------- */
 
-    // Used for the “Most relevant note:” display under the answer
-    public Note findMostRelevantNote(String query) {
-        float[] queryEmbedding = embeddingService.generateEmbedding(query);
-        double[] queryVector = toDoubleArray(queryEmbedding);
-
-        LocalDate today = LocalDate.now(ZoneId.systemDefault());
-        LocalDateTime startOfDay = today.atStartOfDay();
-        LocalDateTime startOfTomorrow = today.plusDays(1).atStartOfDay();
-
-        List<Note> candidates = repo.findByCreatedAtBetween(startOfDay, startOfTomorrow);
-        if (candidates.isEmpty()) {
-            candidates = repo.findTop50ByOrderByCreatedAtDesc();
-        }
-        if (candidates.isEmpty()) {
+    /**
+     * Used by the UI for “Most relevant note”.
+     * Now also prefers recent notes.
+     */
+    public Note findMostRelevantNote(String question) {
+        if (question == null || question.isBlank()) {
             return null;
         }
 
-        return candidates.stream()
+        List<Note> allNotes = repo.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
+        if (allNotes.isEmpty()) {
+            return null;
+        }
+
+        String qLower = question.toLowerCase(Locale.ROOT);
+        boolean aboutToday = qLower.contains("today");
+
+        LocalDate today = LocalDate.now();
+        LocalDateTime startToday = today.atStartOfDay();
+        LocalDateTime endToday = startToday.plusDays(1);
+
+        // Filter to notes that actually have embeddings
+        List<Note> candidates = allNotes.stream()
                 .filter(n -> n.getEmbedding() != null && !n.getEmbedding().isBlank())
-                .max(Comparator.comparingDouble(note ->
-                        cosineSimilarity(
-                                queryVector,
-                                parseEmbeddingVector(note.getEmbedding())
-                        )))
-                .orElse(null);
+                .filter(n -> {
+                    if (!aboutToday) {
+                        return true;
+                    }
+                    // If the question is about "today", only consider notes from today
+                    if (n.getCreatedAt() == null) return false;
+                    LocalDateTime ts = n.getCreatedAt();
+                    return !ts.isBefore(startToday) && ts.isBefore(endToday);
+                })
+                .collect(Collectors.toList());
+
+        if (candidates.isEmpty()) {
+            // For "today", if there are no notes today, just say "no best note".
+            // (We do NOT fall back to old notes.)
+            return null;
+        }
+
+        // One embedding call for the question
+        float[] qVecFloat = embeddingService.generateEmbedding(question);
+        double[] qVec = toDoubleArray(qVecFloat);
+
+        Note best = null;
+        double bestScore = Double.NEGATIVE_INFINITY;
+
+        for (Note n : candidates) {
+            double[] noteVec = parseEmbeddingVector(n.getEmbedding());
+            if (noteVec.length == 0) continue;
+
+            double sim = cosineSimilarity(qVec, noteVec);
+
+            long daysOld = 0;
+            if (n.getCreatedAt() != null) {
+                daysOld = ChronoUnit.DAYS.between(n.getCreatedAt().toLocalDate(), today);
+            }
+
+            // For generic questions, push very old notes down.
+            // For "today" questions all dates are today, so weight = 1.
+            double recencyWeight = aboutToday
+                    ? 1.0
+                    : 1.0 / (1.0 + Math.max(0, daysOld) / 7.0);
+
+            double score = sim * recencyWeight;
+
+            if (score > bestScore) {
+                bestScore = score;
+                best = n;
+            }
+        }
+
+        return best;
     }
+
 
     /* ---------- Main QA entry point ---------- */
 
-    public String answerQuestion(String question) {
-        // 1) Embed the question
-        float[] queryEmbedding = embeddingService.generateEmbedding(question);
-        double[] queryVector = toDoubleArray(queryEmbedding);
 
-        // 2) Load ALL notes
-        List<Note> allNotes = repo.findAll();
-        if (allNotes.isEmpty()) {
-            // no notes → ask model without context
-            return callChatModel(question, Collections.<Note>emptyList());
+
+    /**
+     * Generic Q&A entry point used by POST /ask.
+     */
+    public String answerQuestion(String question) {
+        if (question == null || question.isBlank()) {
+            return "Please type a question.";
         }
 
-        // 3) Score each note by cosine similarity and keep top K
-        final int TOP_K = 5;  // how many notes to send as context
+        List<Note> allNotes = repo.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
+        if (allNotes.isEmpty()) {
+            return "You don't have any notes yet, so I can't answer from your history.";
+        }
+
+        String qLower = question.toLowerCase(Locale.ROOT);
+        boolean aboutToday = qLower.contains("today");
+
+        LocalDate today = LocalDate.now();
+        LocalDateTime startToday = today.atStartOfDay();
+        LocalDateTime endToday = startToday.plusDays(1);
+
+        // 1) Filter notes that have embeddings
+        List<Note> candidates = allNotes.stream()
+                .filter(n -> n.getEmbedding() != null && !n.getEmbedding().isBlank())
+                .filter(n -> {
+                    if (!aboutToday) {
+                        // Generic question -> allow everything, recency will be handled in scoring
+                        return true;
+                    }
+                    // Question explicitly about "today" -> ONLY notes from today
+                    if (n.getCreatedAt() == null) return false;
+                    LocalDateTime ts = n.getCreatedAt();
+                    return !ts.isBefore(startToday) && ts.isBefore(endToday);
+                })
+                .collect(Collectors.toList());
+
+        if (candidates.isEmpty()) {
+            // If user asked about "today" and we have no notes for today,
+            // do NOT pull in old stuff. Tell the model there is no context.
+            if (aboutToday) {
+                return callChatModel(question, Collections.emptyList());
+            }
+            // Generic question but no embedded notes at all
+            return "I couldn't find any notes with embeddings yet. Try adding some recent notes first.";
+        }
+
+        // 2) Embed the question once
+        float[] qVecFloat = embeddingService.generateEmbedding(question);
+        double[] qVec = toDoubleArray(qVecFloat);
+
+        // 3) Score notes by similarity * recency weight
+        LocalDateTime now = LocalDateTime.now();
 
         class Scored {
             final Note note;
             final double score;
-
-            Scored(Note note, double score) {
-                this.note = note;
-                this.score = score;
-            }
+            Scored(Note n, double s) { this.note = n; this.score = s; }
         }
 
-        List<Note> topNotes = allNotes.stream()
-                .filter(n -> n.getEmbedding() != null && !n.getEmbedding().isBlank())
+        List<Scored> scored = candidates.stream()
                 .map(n -> {
-                    double[] vec = parseEmbeddingVector(n.getEmbedding());
-                    double sim = cosineSimilarity(queryVector, vec);
-                    return new Scored(n, sim);
+                    double[] noteVec = parseEmbeddingVector(n.getEmbedding());
+                    if (noteVec.length == 0) return null;
+
+                    double sim = cosineSimilarity(qVec, noteVec);
+
+                    long daysOld = 0;
+                    if (n.getCreatedAt() != null) {
+                        daysOld = ChronoUnit.DAYS.between(n.getCreatedAt().toLocalDate(), today);
+                    }
+
+                    double recencyWeight = aboutToday
+                            ? 1.0
+                            : 1.0 / (1.0 + Math.max(0, daysOld) / 7.0);
+
+                    double score = sim * recencyWeight;
+                    return new Scored(n, score);
                 })
-                .sorted((a, b) -> Double.compare(b.score, a.score))
-                .limit(TOP_K)
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparingDouble((Scored s) -> s.score).reversed())
+                .collect(Collectors.toList());
+
+        if (scored.isEmpty()) {
+            // Should be rare – everything had empty/invalid embedding
+            return "I couldn't match your question to any of your notes yet.";
+        }
+
+        // 4) Take top-K as context for the chat model
+        int topK = Math.min(8, scored.size());
+        List<Note> topNotes = scored.subList(0, topK).stream()
                 .map(s -> s.note)
                 .collect(Collectors.toList());
 
-        if (topNotes.isEmpty()) {
-            return callChatModel(question, Collections.<Note>emptyList());
-        }
-
-        // 4) Ask OpenAI to synthesize an answer based on those notes
         return callChatModel(question, topNotes);
     }
+
+
+
+
+
+
+
 
     /* ---------- OpenAI Chat call (multi-note context) ---------- */
 
     private String callChatModel(String question, List<Note> contextNotes) {
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Authorization", "Bearer " + OPENAI_API_KEY);
-            headers.set("Content-Type", "application/json");
+            String systemPrompt =
+                    "You are Thynkah, a personal memory and planning assistant. "
+                            + "You ONLY know what is written in the notes I give you. "
+                            + "Never invent facts, events, or tasks that are not clearly implied by those notes.\n\n"
+                            + "When the user asks what to do today (or a similar planning question):\n"
+                            + "- Suggest only actions the user can realistically do themselves.\n"
+                            + "- Do NOT tell them to clean, fix, or change things they do not own or control "
+                            + "  (for example, a corporate or public shower, company facilities, other people's property).\n"
+                            + "- Prefer concrete, next-step actions over vague advice.\n"
+                            + "- If a note describes something that already happened or is clearly outside their control, "
+                            + "  you may mention it as context but must not turn it into a todo item.\n\n"
+                            + "If the provided notes are empty or clearly unrelated to the question, "
+                            + "say explicitly that there is nothing relevant in their notes yet instead of guessing.";
 
-            // System prompt: how the AI should behave
-            Map<String, Object> systemMsg = new HashMap<>();
-            systemMsg.put("role", "system");
-            systemMsg.put("content",
-                    "You are Thynkah, the user's personal second-brain.\n" +
-                            "You read the user's notes and answer questions based ONLY on those notes.\n" +
-                            "STYLE RULES:\n" +
-                            "- Start with a direct answer in 1–3 concise sentences.\n" +
-                            "- If helpful, add up to 3 short bullet points with key details.\n" +
-                            "- Synthesize and paraphrase; do NOT copy notes verbatim.\n" +
-                            "- Combine information from multiple notes if it helps answer the question.\n" +
-                            "- Mention dates or times only if the user asks about schedule, when something happened, or 'today'.\n" +
-                            "- If the notes do not contain enough information, say that clearly instead of guessing wildly."
-            );
-
-
-            // Build context from multiple notes
-            StringBuilder notesText = new StringBuilder();
+            StringBuilder sb = new StringBuilder();
             if (contextNotes != null && !contextNotes.isEmpty()) {
-                notesText.append("Here are some of the user's relevant notes:\n\n");
+                sb.append("Here are the user's most relevant notes (most recent / relevant first):\n\n");
                 for (Note n : contextNotes) {
-                    notesText.append("Note (")
-                            .append(n.getCreatedAt() != null ? n.getCreatedAt() : "no date")
-                            .append(")");
-                    if (n.getTag() != null && !n.getTag().isBlank()) {
-                        notesText.append(" [tags: ").append(n.getTag()).append("]");
+                    sb.append("- Note from ");
+                    if (n.getCreatedAt() != null) {
+                        sb.append(n.getCreatedAt());
+                    } else {
+                        sb.append("an unknown date");
                     }
-                    notesText.append(":\n");
-                    notesText.append(n.getText()).append("\n\n");
+                    sb.append(":\n");
+                    sb.append(n.getText()).append("\n\n");
                 }
             } else {
-                notesText.append("The user currently has no saved notes.\n\n");
+                sb.append("There are NO relevant notes for this query.\n");
             }
 
-            notesText.append("User's question: ").append(question);
-
-            Map<String, Object> userMsg = new HashMap<>();
-            userMsg.put("role", "user");
-            userMsg.put("content", notesText.toString());
-
-            List<Map<String, Object>> messages = List.of(systemMsg, userMsg);
+            String userPrompt =
+                    "User question:\n" + question + "\n\n"
+                            + "Use ONLY the notes below to answer. "
+                            + "If they don't contain enough information, say so explicitly.\n\n"
+                            + sb;
 
             Map<String, Object> body = new HashMap<>();
-            body.put("model", "gpt-4.1-mini");
+            body.put("model", "gpt-4.1-mini"); // or whatever model you are using
+
+            List<Map<String, String>> messages = new ArrayList<>();
+            messages.add(Map.of(
+                    "role", "system",
+                    "content", systemPrompt
+            ));
+            messages.add(Map.of(
+                    "role", "user",
+                    "content", userPrompt
+            ));
             body.put("messages", messages);
+            body.put("temperature", 0.2);
 
-            HttpEntity<Map<String, Object>> request =
-                    new HttpEntity<>(body, headers);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(openAiApiKey);
 
-            ResponseEntity<String> response =
-                    restTemplate.postForEntity(CHAT_URL, request, String.class);
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+            ResponseEntity<String> response = restTemplate.postForEntity(CHAT_URL, request, String.class);
+
+            if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                return "I couldn't reach the AI service right now.";
+            }
 
             JsonNode root = mapper.readTree(response.getBody());
             JsonNode choices = root.path("choices");
-            if (!choices.isArray() || choices.isEmpty()) {
-                System.err.println("Invalid chat response: " + root);
-                return "I couldn't generate an answer.";
+            if (choices.isArray() && choices.size() > 0) {
+                JsonNode message = choices.get(0).path("message");
+                JsonNode content = message.path("content");
+                if (!content.isMissingNode()) {
+                    return content.asText().trim();
+                }
             }
 
-            return choices.get(0).path("message").path("content").asText();
-
+            return "I couldn't get a meaningful answer from the AI.";
         } catch (Exception e) {
             e.printStackTrace();
-            return "There was an error talking to the AI service.";
+            return "Error while contacting AI: " + e.getMessage();
         }
     }
+
 
     // inside NoteService
     public List<Note> findNotesForDate(LocalDate date) {
@@ -312,30 +434,61 @@ public class NoteService {
         return repo.findByCreatedAtBetween(start, end);
     }
 
+
+
     public String answerQuestionForDate(String question, LocalDate date) {
-        // reuse your date helper
         List<Note> contextNotes = findNotesForDate(date);
 
-        // If no notes on that day, just fall back to normal behavior
         if (contextNotes == null || contextNotes.isEmpty()) {
+            // no notes that day – fall back to normal behaviour
             return answerQuestion(question);
         }
 
-        // Use ONLY that day's notes as context
-        return callChatModel(question, contextNotes);
+        String q = question;
+        if (q == null || q.trim().isEmpty()) {
+            // default used by your “Ask about this day” button
+            q = "Summarize everything important I did, thought or felt on this date. "
+                    + "Describe it as a narrative summary, not a to-do list.";
+        }
+
+        // Add safety rails so it does NOT invent tasks for you
+        q = q + "\n\n"
+                + "Very important rules:\n"
+                + "- Describe what happened and how I felt.\n"
+                + "- Do NOT turn complaints or observations into tasks unless I explicitly said I plan to act on them.\n"
+                + "- If I complain about something that is someone else's responsibility "
+                + "  (for example, a dirty corporate shower), mention it only as part of the story, "
+                + "  and do NOT say that I should clean or fix it.\n"
+                + "- Only list concrete tasks if I clearly wrote that I need or intend to do them.";
+
+        return callChatModel(q, contextNotes);
     }
+
 
     public String answerQuestionForNote(String question, Long noteId) {
         Note note = repo.findById(noteId)
-                .orElseThrow(() -> new RuntimeException("Note not found with ID: " + noteId));
+                .orElseThrow(() -> new IllegalArgumentException("Note not found: " + noteId));
 
-        List<Note> context = Collections.singletonList(note);
-
-        if (question == null || question.trim().isEmpty()) {
-            question = "Summarize this note briefly and extract any explicit tasks or plans as bullet points.";
+        String q = question;
+        if (q == null || q.trim().isEmpty()) {
+            q = "Summarize this note in a few sentences. "
+                    + "Capture what I did, thought or felt, not a list of orders for me.";
         }
 
-        return callChatModel(question, context);
+        q = q + "\n\n"
+                + "Rules:\n"
+                + "- If I describe something unpleasant (e.g. a dirty shower), treat it as an observation.\n"
+                + "- Only turn something into a task if I clearly wrote it as a plan, intention or reminder.";
+
+        return callChatModel(q, Collections.singletonList(note));
+    }
+
+
+
+
+    public List<Note> findAllForCurrentUser() {
+        // single-user for now; later you can filter by userId
+        return repo.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
     }
 
 }

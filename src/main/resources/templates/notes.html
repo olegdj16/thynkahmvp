@@ -18,7 +18,9 @@
 
 <h3>📓 Saved Notes</h3>
 <div th:each="note : ${notes}" class="note-card">
-    <p><strong>Text:</strong> <span th:text="${note.text}"></span></p>
+    <p><strong>Text:</strong>
+        <span class="note-text" th:utext="${note.renderedHtml}"></span>
+    </p>
     <p><strong>Tag:</strong> <span th:text="${note.tag}"></span></p>
     <p><strong>Date:</strong> <span th:text="${#dates.format(note.createdAt, 'yyyy-MM-dd HH:mm')}"></span></p>
 
