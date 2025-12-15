@@ -4,7 +4,6 @@ import com.thynkah.model.Note;
 import com.thynkah.repository.NoteRepository;
 import com.thynkah.service.NoteService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -15,7 +14,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-@Controller // ✅ changed from @RestController
+@Controller
 @CrossOrigin(origins = "*")
 public class NoteController {
 
@@ -47,7 +46,7 @@ public class NoteController {
   @GetMapping("/notes")
   @ResponseBody
   public List<Note> getAllNotes() {
-    return noteRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
+      return noteService.findAllForCurrentUser();
   }
 
   // ✅ Delete a note by ID
@@ -83,7 +82,7 @@ public class NoteController {
           .filter(tag -> !tag.isBlank())
           .distinct()
           .sorted()
-          .collect(Collectors.toList()); // ✅ compatible with Java 8+
+          .collect(Collectors.toList());
   }
 
     // Ask a question -> AI answer (using your notes)
@@ -123,8 +122,6 @@ public class NoteController {
     ) {
         return noteService.findNotesForDate(date);
     }
-
-
 
     @PostMapping(value = "/ask/day", consumes = "application/json", produces = "application/json")
     @ResponseBody

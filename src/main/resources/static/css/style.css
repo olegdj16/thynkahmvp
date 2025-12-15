@@ -147,3 +147,41 @@ button:hover {
     justify-content: space-between;
     margin-bottom: 1rem;
 }
+
+/* preserve spaces and line breaks in note text */
+.note-text {
+    white-space: pre-wrap;   /* keeps \n and multiple spaces */
+    word-break: break-word;  /* avoid horizontal scrolling */
+}
+
+/* block wrapping toolbar + textarea */
+.note-input-block {
+    margin-top: 0.5rem;
+}
+
+/* small formatting toolbar above textarea */
+.note-toolbar {
+    margin-bottom: 0.5rem;
+    display: flex;
+    gap: 0.25rem;
+}
+
+.note-toolbar button {
+    border: 1px solid #ccc;
+    background: #f7f7ff;
+    color: #333;
+    border-radius: 4px;
+    padding: 0.15rem 0.4rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.note-toolbar button:hover {
+    background: #e3e3ff;
+}
+
+.note-text {
+    white-space: pre-wrap;
+}
+
+

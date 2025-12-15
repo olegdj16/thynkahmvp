@@ -87,12 +87,26 @@
 
 <hr />
 
-<textarea id="note" placeholder="Paste your journal entry or idea..."></textarea>
+<div class="note-input-block">
+    <div class="note-toolbar">
+        <button type="button" onclick="wrapSelection('**','**')"><b>B</b></button>
+        <button type="button" onclick="wrapSelection('_','_')"><i>I</i></button>
+        <button type="button" onclick="insertPrefix('- ')">•</button>
+        <button type="button" onclick="insertPrefix('1. ')">1.</button>
+    </div>
+
+    <textarea id="note"
+              name="text"
+              rows="8"
+              placeholder="Paste your journal entry or idea... You can use **bold**, _italic_, etc."></textarea>
+</div>
+
 <input id="tag" placeholder="Tags (comma-separated)" />
 <div id="tagSuggestions"></div>
 <button onclick="uploadNote()">Upload Note</button>
 
 <hr />
+
 
 
 
@@ -138,11 +152,42 @@
         return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     }
 
-    function highlightText(text, query) {
-        if (!query) return text || "";
-        const pattern = new RegExp("(" + escapeRegExp(query) + ")", "gi");
-        return (text || "").replace(pattern, "<mark>$1</mark>");
+    function escapeHtml(str) {
+        return (str || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
     }
+
+    // very small markdown → HTML renderer
+    function renderMarkdown(text) {
+        let html = escapeHtml(text || "");
+
+        // **bold**
+        html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+
+        // _italic_
+        html = html.replace(/_(.+?)_/g, "<em>$1</em>");
+
+        // line breaks
+        html = html.replace(/\n/g, "<br>");
+
+        return html;
+    }
+
+    function highlightText(text, query) {
+        let html = renderMarkdown(text || "");
+
+        const q = (query || "").trim();
+        if (!q) return html;
+
+        const pattern = new RegExp("(" + escapeRegExp(q) + ")", "gi");
+        return html.replace(pattern, "<mark>$1</mark>");
+    }
+
+
     /*part of highlight function*/
 
     async function uploadNote() {
@@ -307,7 +352,7 @@
     ${tagHTML}
     <input id="tag-input-${n.id}" value="${n.tag || ""}" style="display:none; width:100%" />
 
-    <p id="text-display-${n.id}">${highlightedText}</p>
+    <p id="text-display-${n.id}" class="note-text">${highlightedText}</p>
     <textarea id="text-input-${n.id}" style="display:none;">${n.text}</textarea>
 
     <small style="color:#666;">🕒 ${new Date(n.createdAt).toLocaleString()}</small>
@@ -502,15 +547,77 @@
     }
 
 
+    function getTextarea() {
+        return document.getElementById("note");
+    }
+
+    function wrapSelection(before, after) {
+        const ta = getTextarea();
+        const start = ta.selectionStart;
+        const end   = ta.selectionEnd;
+
+        const selected = ta.value.substring(start, end) || "";
+        const wrapped = before + selected + after;
+
+        ta.value = ta.value.substring(0, start) + wrapped + ta.value.substring(end);
+        ta.focus();
+        ta.selectionStart = start + before.length;
+        ta.selectionEnd   = start + before.length + selected.length;
+    }
+
+    function insertPrefix(prefix) {
+        const ta = getTextarea();
+        const start = ta.selectionStart;
+        const end   = ta.selectionEnd;
+
+        // insert at start of current line(s)
+        const value = ta.value;
+        const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+
+        ta.value = value.substring(0, lineStart) + prefix + value.substring(lineStart);
+        ta.focus();
+        ta.selectionStart = start + prefix.length;
+        ta.selectionEnd   = end + prefix.length;
+    }
 
 
 
     async function askNoteCombined(id) {
-        const prompt =
-            "First, summarize this note briefly in 2–3 sentences. " +
-            "Then, on a new line, list ONLY actionable tasks as a bulleted checklist. " +
-            "Use '- [ ] ' at the start of each task bullet. " +
-            "If there are no actionable tasks, say 'No actionable tasks found.'";
+        const prompt = `
+You are Thynkah, a personal journaling assistant.
+You see one diary note written in first person. Do TWO things:
+
+1) Write a neutral 2–3 sentence summary of what happened and how the writer felt.
+
+2) Then suggest at most 3 realistic "next steps" as a checklist.
+   Each checklist item MUST:
+   - Be an action the writer themself could reasonably take.
+   - Be clearly implied or desired by the writer in the note
+     (for example "I should...", "I want to...", "I need to...", or a very strong hint).
+   - Be under the writer’s direct control.
+
+Important constraints:
+- Do NOT create tasks for things outside the writer’s control
+  (e.g. cleaning or repairing company showers, changing other people, fixing public systems).
+- Do NOT turn pure complaints or observations into tasks unless the writer explicitly
+  indicates they want to act on it (e.g. "I should complain to the manager about the shower").
+- If you’re unsure whether something is a task for the writer, leave it out.
+- It is better to return fewer tasks than to invent ones.
+
+Return plain text in this exact structure:
+
+Summary:
+<2–3 sentences>
+
+Possible next steps:
+- [ ] <task 1>
+- [ ] <task 2>
+- [ ] <task 3>
+
+If there are no suitable actions, write:
+Possible next steps:
+No actionable tasks found for the user.
+`;
 
         await askNoteWithPrompt(id, prompt);
     }
