@@ -301,15 +301,22 @@
 
 
             const tags = (n.tag || "").split(",").map(t => t.trim()).filter(Boolean);
-            const tagHTML = tags.length
-                ? `<div id="tag-display-${n.id}">
-                   ${tags
-                    .map(tag => `<span class="chip">${highlightText(tag, q)}</span>`) //part of highlight function
-                    .join(" ")}
-               </div>`
-                : `<div id="tag-display-${n.id}">
-                   <em style="color:#aaa;">No tags</em>
-               </div>`;
+
+            const tagHTML = `
+  <details class="note-tags" style="margin-bottom:0.5rem;">
+    <summary style="cursor:pointer; color:#666; font-size:0.85rem;">
+      Tags${tags.length ? ` (${tags.length})` : ""}
+    </summary>
+    <div id="tag-display-${n.id}" style="margin-top:0.35rem;">
+      ${
+                tags.length
+                    ? tags.map(tag => `<span class="chip">${highlightText(tag, q)}</span>`).join(" ")
+                    : `<em style="color:#aaa;">No tags</em>`
+            }
+    </div>
+  </details>
+`;
+
 
             const highlightedText = highlightText(n.text || "", q); //part of highlight function
 
