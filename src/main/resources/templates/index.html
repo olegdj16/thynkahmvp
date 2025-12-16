@@ -102,16 +102,9 @@
 </div>
 
 <input id="tag" placeholder="Tags (comma-separated)" />
-<div id="tagSuggestions"></div>
 <button onclick="uploadNote()">Upload Note</button>
 
 <hr />
-
-
-
-
-
-
 
 
 
@@ -204,26 +197,16 @@
         document.getElementById("note").value = "";
         document.getElementById("tag").value = "";
         loadNotes();
-        loadTagSuggestions();
     }
 
     /*updated 12.04.2025 */
 
-    // async function askQuestion() {
-    //     const question = document.getElementById("question").value;
-    //     if (!question.trim()) return;
-    //
-    //     const res = await fetch("/chat", {
-    //         method: "POST",
-    //         headers: { "Content-Type": "application/json" },
-    //         body: JSON.stringify({ question }),
-    //     });
-    //     const data = await res.json();
-    //     document.getElementById("response").innerText = data.reply;
-    //
-    //     // HIDE saved prompts
-    //     document.getElementById("savedPrompts").style.display = "none";
-    // }
+
+
+
+
+
+
 
     async function askQuestion() {
         const questionEl = document.getElementById("question");
@@ -303,26 +286,6 @@
         if (selected) {
             document.getElementById("question").value = selected;
         }
-    }
-
-    async function loadTagSuggestions() {
-        const res = await fetch("/tags");
-        const tags = await res.json();
-        const container = document.getElementById("tagSuggestions");
-        container.innerHTML = "";
-        tags.forEach(tag => {
-            const span = document.createElement("span");
-            span.innerText = tag;
-            span.onclick = () => {
-                const input = document.getElementById("tag");
-                const current = input.value.split(',').map(t => t.trim()).filter(Boolean);
-                if (!current.includes(tag)) {
-                    current.push(tag);
-                    input.value = current.join(', ');
-                }
-            };
-            container.appendChild(span);
-        });
     }
 
     function renderNotes(notes, query) {
@@ -535,7 +498,6 @@
 
             panel.style.display = "none";
             await loadNotes();
-            await loadTagSuggestions();
 
             showToast("AI note saved.");
             if (saved && saved.id) {
@@ -856,7 +818,6 @@ No actionable tasks found for the user.
 
         if (resText.ok && resTag.ok) {
             await loadNotes();
-            await loadTagSuggestions();
         }
     }
 
@@ -886,7 +847,6 @@ No actionable tasks found for the user.
 
     window.onload = () => {
         loadNotes();
-        loadTagSuggestions();
         loadSavedPrompts();
 
         const container = document.getElementById("notesList");
