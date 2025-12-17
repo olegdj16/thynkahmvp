@@ -32,7 +32,10 @@ public class NoteController {
 
 
 
-
+    @GetMapping("/add")
+    public String addNotePage() {
+        return "add";
+    }
 
   // ✅ Save a new note (used by frontend JavaScript)
   @PostMapping(value = "/notes", consumes = "application/json", produces = "application/json")
@@ -183,18 +186,12 @@ public class NoteController {
     }
 
     @GetMapping("/")
-    public String home(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "50") int size,
-            Model model
-    ) {
-        var notesPage = noteService.getNotesPage(page, size);
+    public String home() {
+        return "redirect:/add";
+    }
 
-        model.addAttribute("notesPage", notesPage);
-        model.addAttribute("notes", notesPage.getContent());
-        model.addAttribute("page", page);
-        model.addAttribute("size", size);
-
+    @GetMapping("/browse")
+    public String browse() {
         return "index";
     }
 

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Add Note</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        .row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+        .muted { opacity: 0.75; font-size: 0.9em; }
+        .btn-secondary { opacity: 0.9; }
+        .btn-tertiary { opacity: 0.82; }
+        .tag-input { width: 100%; margin-top: 0.5rem; }
+    </style>
+</head>
+<body>
+
+<h1>🧠 Thynkah</h1>
+
+<div id="headerArea">
+    <nav class="navbar">
+        <a th:href="@{/add}">➕ Add</a>
+        <a th:href="@{/browse}">📋 Browse</a>
+        <a th:href="@{/askui}">💬 Ask</a>
+        <a th:href="@{/calendar}">📅 Calendar</a>
+    </nav>
+</div>
+
+<h2>Add Note</h2>
+
+<textarea id="note"
+          name="text"
+          rows="10"
+          placeholder="Write something…"
+          autofocus></textarea>
+
+<div class="row" style="margin-top:0.75rem;">
+    <button id="saveBtn" onclick="uploadNote()">Save</button>
+    <button id="clearBtn" class="btn-tertiary" onclick="clearForm()">Clear</button>
+    <span class="muted">Tip: Ctrl+Enter to save</span>
+</div>
+
+<details id="optionalDetails" style="margin-top:0.75rem;">
+    <summary>Optional details</summary>
+    <input id="tag" class="tag-input" placeholder="Tags (comma-separated)" />
+</details>
+
+<div id="toast"></div>
+
+<script th:inline="javascript">
+    /*<![CDATA[*/
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const noteEl = document.getElementById("note");
+        if (noteEl) noteEl.focus();
+
+        // Ctrl+Enter to save (keeps Enter for new lines)
+        noteEl.addEventListener("keydown", (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                e.preventDefault();
+                uploadNote();
+            }
+        });
+    });
+
+    function setBusy(isBusy) {
+        const saveBtn = document.getElementById("saveBtn");
+        const clearBtn = document.getElementById("clearBtn");
+        if (saveBtn) saveBtn.disabled = isBusy;
+        if (clearBtn) clearBtn.disabled = isBusy;
+    }
+
+    function normalizeTags(raw) {
+        return (raw || "")
+            .split(",")
+            .map(s => s.trim())
+            .filter(Boolean)
+            .join(", ");
+    }
+
+    async function uploadNote() {
+        const noteEl = document.getElementById("note");
+        const tagEl = document.getElementById("tag");
+
+        const text = (noteEl.value || "").trim();
+        const tag = normalizeTags(tagEl.value || "");
+
+        if (!text) {
+            showToast("Type a note first");
+            noteEl.focus();
+            return;
+        }
+
+        setBusy(true);
+
+        try {
+            const res = await fetch("/notes", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text, tag })
+            });
+
+            if (!res.ok) throw new Error("HTTP " + res.status);
+
+            // Ready for rapid next note
+            noteEl.value = "";
+            tagEl.value = "";
+            noteEl.focus();
+
+            // Keep optional details collapsed after save
+            const details = document.getElementById("optionalDetails");
+            if (details) details.open = false;
+
+            showToast("Saved");
+        } catch (e) {
+            showToast("Failed to save");
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    function clearForm() {
+        const noteEl = document.getElementById("note");
+        const tagEl = document.getElementById("tag");
+        const details = document.getElementById("optionalDetails");
+
+        noteEl.value = "";
+        tagEl.value = "";
+        if (details) details.open = false;
+
+        noteEl.focus();
+        showToast("Cleared");
+    }
+
+    function showToast(message) {
+        const toast = document.getElementById("toast");
+        if (!toast) return;
+        toast.innerText = message;
+        toast.style.display = "block";
+        setTimeout(() => toast.style.display = "none", 1500);
+    }
+
+    /*]]>*/
+</script>
+
+</body>
+</html>
