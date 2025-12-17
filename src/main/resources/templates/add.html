@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Add Note</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<h1>🧠 Thynkah</h1>
+
+<div id="headerArea">
+    <nav class="navbar">
+        <a th:href="@{/add}">➕ Add</a>
+        <a th:href="@{/browse}">📋 Browse</a>
+        <a th:href="@{/askui}">💬 Ask</a>
+        <a th:href="@{/calendar}">📅 Calendar</a>
+    </nav>
+</div>
+
+<h2>Add Note</h2>
+
+<div class="note-input-block">
+  <textarea id="note"
+            name="text"
+            rows="10"
+            placeholder="Write something…"
+            autofocus></textarea>
+</div>
+
+<details style="margin-top:0.5rem;">
+    <summary>Optional details</summary>
+    <input id="tag" placeholder="Tags (comma-separated)" />
+</details>
+
+<div style="margin-top:0.75rem;">
+    <button onclick="uploadNote()">Save</button>
+</div>
+
+<div id="toast"></div>
+
+<script th:inline="javascript">
+    /*<![CDATA[*/
+
+    async function uploadNote() {
+        const text = document.getElementById("note").value;
+        const tag  = document.getElementById("tag").value;
+
+        if (!text.trim()) return;
+
+        await fetch("/notes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text, tag }),
+        });
+
+        // clear + ready for next capture
+        document.getElementById("note").value = "";
+        document.getElementById("tag").value = "";
+        document.getElementById("note").focus();
+
+        showToast("Saved");
+    }
+
+    function showToast(message) {
+        const toast = document.getElementById("toast");
+        if (!toast) return;
+        toast.innerText = message;
+        toast.style.display = "block";
+        setTimeout(() => toast.style.display = "none", 1500);
+    }
+
+    /*]]>*/
+</script>
+
+</body>
+</html>

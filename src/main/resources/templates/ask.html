@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Ask</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        .muted { opacity: 0.75; font-size: 0.9em; }
+        .row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+
+        .note-box {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 0.75rem;
+            background: #fff;
+            white-space: pre-wrap;
+            max-height: 240px;
+            overflow: auto;
+        }
+
+        .btn-secondary { opacity: 0.95; }
+        .btn-tertiary { opacity: 0.85; }
+        .hint { user-select: none; }
+    </style>
+</head>
+<body>
+
+<h1>🧠 Thynkah</h1>
+
+<div id="headerArea">
+    <nav class="navbar">
+        <a th:href="@{/add}">➕ Add</a>
+        <a th:href="@{/browse}">📋 Browse</a>
+        <a th:href="@{/askui}">💬 Ask</a>
+        <a th:href="@{/calendar}">📅 Calendar</a>
+    </nav>
+
+    <textarea id="question" placeholder="Ask your brain something..."></textarea>
+
+    <div class="row" style="margin-top:0.5rem;">
+        <button id="askBtn" onclick="askQuestion()">Ask</button>
+        <button class="btn-secondary" id="savePromptBtn" onclick="savePrompt()">Save Prompt</button>
+        <button class="btn-tertiary" id="clearBtn" onclick="clearAsk()">Clear</button>
+        <span class="muted hint" id="hint">Tip: Enter to ask • Ctrl+Enter also works</span>
+    </div>
+
+    <select id="savedPrompts" onchange="fillPrompt(this)" style="margin-top:0.5rem;">
+        <option value="">🔽 Select a saved prompt</option>
+    </select>
+</div>
+
+<div style="margin-top:0.75rem;">
+    <strong>Answer:</strong>
+    <p id="response" class="muted"></p>
+</div>
+
+<div style="margin-top:0.75rem;">
+    <strong>Based on this note:</strong>
+    <div id="mostRelevantNote" class="note-box muted">No note yet.</div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        loadSavedPrompts();
+
+        const q = document.getElementById("question");
+        if (q) q.focus();
+
+        // Enter to ask (no Shift+Enter). Shift+Enter makes a newline.
+        q.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+                // Allow Ctrl+Enter too; both trigger ask.
+                e.preventDefault();
+                askQuestion();
+            }
+            if (e.ctrlKey && e.key === "Enter") {
+                e.preventDefault();
+                askQuestion();
+            }
+        });
+    });
+
+    function setBusy(isBusy) {
+        const askBtn = document.getElementById("askBtn");
+        const saveBtn = document.getElementById("savePromptBtn");
+        const clearBtn = document.getElementById("clearBtn");
+
+        if (askBtn) askBtn.disabled = isBusy;
+        if (saveBtn) saveBtn.disabled = isBusy;
+        if (clearBtn) clearBtn.disabled = isBusy;
+    }
+
+    function normalizeAskResponse(data) {
+        const answer = (data && (data.answer || data.reply)) || "";
+
+        const directNoteText =
+            (data && (data.noteText || (data.note && data.note.text))) || "";
+
+        const sourceNotes = (data && data.sourceNotes) || [];
+        const noteFromList =
+            (Array.isArray(sourceNotes) && sourceNotes.length && (sourceNotes[0].text || "")) || "";
+
+        return {
+            answer: answer,
+            noteText: directNoteText || noteFromList
+        };
+    }
+
+    async function askQuestion() {
+        const questionEl = document.getElementById("question");
+        const answerEl = document.getElementById("response");
+        const noteEl = document.getElementById("mostRelevantNote");
+
+        const question = (questionEl.value || "").trim();
+        if (!question) {
+            answerEl.innerText = "Please type a question first.";
+            answerEl.classList.add("muted");
+            noteEl.innerText = "No note yet.";
+            noteEl.classList.add("muted");
+            return;
+        }
+
+        setBusy(true);
+
+        answerEl.innerText = "Thinking...";
+        answerEl.classList.add("muted");
+
+        noteEl.innerText = "Searching your notes...";
+        noteEl.classList.add("muted");
+
+        try {
+            const res = await fetch("/ask", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ question })
+            });
+
+            if (!res.ok) {
+                // Try to surface server message if it exists
+                let msg = "";
+                try { msg = await res.text(); } catch {}
+                throw new Error("HTTP " + res.status + (msg ? (": " + msg) : ""));
+            }
+
+            const data = await res.json();
+            const normalized = normalizeAskResponse(data);
+
+            if (!normalized.answer) {
+                answerEl.innerText = "No answer returned.";
+                answerEl.classList.add("muted");
+            } else {
+                answerEl.innerText = normalized.answer;
+                answerEl.classList.remove("muted");
+            }
+
+            if (!normalized.noteText) {
+                noteEl.innerText = "No matching note found for this question.";
+                noteEl.classList.add("muted");
+            } else {
+                noteEl.innerText = normalized.noteText;
+                noteEl.classList.remove("muted");
+            }
+
+        } catch (e) {
+            answerEl.innerText = "Error talking to the server. Try again.";
+            answerEl.classList.add("muted");
+
+            noteEl.innerText = "No note available.";
+            noteEl.classList.add("muted");
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    function clearAsk() {
+        const questionEl = document.getElementById("question");
+        const answerEl = document.getElementById("response");
+        const noteEl = document.getElementById("mostRelevantNote");
+        const dropdown = document.getElementById("savedPrompts");
+
+        if (questionEl) questionEl.value = "";
+        if (dropdown) dropdown.value = "";
+
+        if (answerEl) {
+            answerEl.innerText = "";
+            answerEl.classList.add("muted");
+        }
+
+        if (noteEl) {
+            noteEl.innerText = "No note yet.";
+            noteEl.classList.add("muted");
+        }
+
+        if (questionEl) questionEl.focus();
+    }
+
+    async function savePrompt() {
+        const prompt = (document.getElementById("question").value || "").trim();
+        if (!prompt) {
+            showToast("Nothing to save");
+            return;
+        }
+
+        try {
+            const res = await fetch("/prompts", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ prompt })
+            });
+
+            if (!res.ok) throw new Error("HTTP " + res.status);
+
+            await loadSavedPrompts();
+            showToast("Saved prompt");
+        } catch (e) {
+            showToast("Failed to save prompt");
+        }
+    }
+
+    async function loadSavedPrompts() {
+        try {
+            const res = await fetch("/prompts");
+            if (!res.ok) return;
+
+            const prompts = await res.json();
+            const dropdown = document.getElementById("savedPrompts");
+            dropdown.innerHTML = '<option value="">🔽 Select a saved prompt</option>';
+
+            (prompts || []).forEach(p => {
+                const opt = document.createElement("option");
+                opt.value = p.prompt;
+                opt.textContent = p.prompt;
+                dropdown.appendChild(opt);
+            });
+        } catch (e) {
+            // optional feature; ignore
+        }
+    }
+
+    function fillPrompt(select) {
+        const selected = select.value;
+        if (selected) {
+            const q = document.getElementById("question");
+            q.value = selected;
+            q.focus();
+        }
+    }
+
+    function showToast(message) {
+        const toast = document.getElementById("toast");
+        if (!toast) return;
+        toast.innerText = message;
+        toast.style.display = "block";
+        setTimeout(() => toast.style.display = "none", 1500);
+    }
+</script>
+
+</body>
+</html>

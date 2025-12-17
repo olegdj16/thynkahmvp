@@ -52,21 +52,33 @@
 <h1>🧠 Thynkah</h1>
 
 <div id="headerArea">
+<!--    <nav class="navbar">-->
+<!--        <a th:href="@{/}">🧠 Home</a>-->
+<!--        <a th:href="@{/calendar}">📅 Calendar</a>-->
+<!--    </nav>-->
+
+<!--    <textarea id="question" placeholder="Ask your brain something..."></textarea>-->
+<!--    <div style="margin-top: 0.5rem;">-->
+<!--        <button onclick="askQuestion()">Ask</button>-->
+<!--        <button onclick="savePrompt()">Save Prompt</button>-->
+<!--    </div>-->
+
+<!--    <select id="savedPrompts" onchange="fillPrompt(this)" style="margin-top: 0.5rem;">-->
+<!--        <option value="">🔽 Select a saved prompt</option>-->
+<!--    </select>-->
+
     <nav class="navbar">
-        <a th:href="@{/}">🧠 Home</a>
+        <a th:href="@{/add}">➕ Add</a>
+        <a th:href="@{/browse}">📋 Browse</a>
+        <a th:href="@{/askui}">💬 Ask</a>
         <a th:href="@{/calendar}">📅 Calendar</a>
     </nav>
 
-    <textarea id="question" placeholder="Ask your brain something..."></textarea>
-    <div style="margin-top: 0.5rem;">
-        <button onclick="askQuestion()">Ask</button>
-        <button onclick="savePrompt()">Save Prompt</button>
-    </div>
 
-    <select id="savedPrompts" onchange="fillPrompt(this)" style="margin-top: 0.5rem;">
-        <option value="">🔽 Select a saved prompt</option>
-    </select>
 </div>
+
+
+
 
 <!-- updated 12.04.2025 -->
 
