@@ -7,9 +7,24 @@
     <style>
         .row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
         .muted { opacity: 0.75; font-size: 0.9em; }
-        .btn-secondary { opacity: 0.9; }
         .btn-tertiary { opacity: 0.82; }
         .tag-input { width: 100%; margin-top: 0.5rem; }
+
+        .preview-box {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 0.75rem;
+            background: #fff;
+            margin-top: 0.75rem;
+            max-height: 240px;
+            overflow: auto;
+        }
+
+        code {
+            padding: 0.1rem 0.25rem;
+            border-radius: 4px;
+            background: #f2f2f2;
+        }
     </style>
 </head>
 <body>
@@ -31,12 +46,22 @@
           name="text"
           rows="10"
           placeholder="Write something…"
-          autofocus></textarea>
+          autofocus
+          oninput="renderPreview()"></textarea>
 
 <div class="row" style="margin-top:0.75rem;">
     <button id="saveBtn" onclick="uploadNote()">Save</button>
     <button id="clearBtn" class="btn-tertiary" onclick="clearForm()">Clear</button>
-    <span class="muted">Tip: Ctrl+Enter to save</span>
+    <span class="muted">Tip: Ctrl/⌘ + Enter to save</span>
+</div>
+
+<div class="muted" style="margin-top:0.5rem;">
+    Formatting: <code>**bold**</code> <code>*italic*</code> <code>`code`</code>
+</div>
+
+<div style="margin-top:0.75rem;">
+    <strong>Preview:</strong>
+    <div id="preview" class="preview-box muted">Start typing to preview formatting.</div>
 </div>
 
 <details id="optionalDetails" style="margin-top:0.75rem;">
@@ -52,8 +77,9 @@
     document.addEventListener("DOMContentLoaded", () => {
         const noteEl = document.getElementById("note");
         if (noteEl) noteEl.focus();
+        renderPreview();
 
-        // Ctrl+Enter to save (keeps Enter for new lines)
+        // Ctrl/⌘ + Enter to save (keeps Enter for new lines)
         noteEl.addEventListener("keydown", (e) => {
             if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
                 e.preventDefault();
@@ -61,6 +87,45 @@
             }
         });
     });
+
+    function escapeHtml(s) {
+        return (s || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
+    function formatText(raw) {
+        // Escape first to prevent HTML injection
+        let s = escapeHtml(raw);
+
+        // Inline code first
+        s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+        // Bold
+        s = s.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+        // Italic (simple; avoids matching bold)
+        s = s.replace(/(^|[^*])\*([^*]+)\*/g, "$1<i>$2</i>");
+        // Newlines
+        s = s.replace(/\r?\n/g, "<br>");
+        return s;
+    }
+
+    function renderPreview() {
+        const noteEl = document.getElementById("note");
+        const previewEl = document.getElementById("preview");
+        const raw = (noteEl?.value || "").trim();
+
+        if (!raw) {
+            previewEl.innerText = "Start typing to preview formatting.";
+            previewEl.classList.add("muted");
+            return;
+        }
+
+        previewEl.innerHTML = formatText(raw);
+        previewEl.classList.remove("muted");
+    }
 
     function setBusy(isBusy) {
         const saveBtn = document.getElementById("saveBtn");
@@ -101,15 +166,14 @@
 
             if (!res.ok) throw new Error("HTTP " + res.status);
 
-            // Ready for rapid next note
             noteEl.value = "";
             tagEl.value = "";
             noteEl.focus();
 
-            // Keep optional details collapsed after save
             const details = document.getElementById("optionalDetails");
             if (details) details.open = false;
 
+            renderPreview();
             showToast("Saved");
         } catch (e) {
             showToast("Failed to save");
@@ -128,6 +192,7 @@
         if (details) details.open = false;
 
         noteEl.focus();
+        renderPreview();
         showToast("Cleared");
     }
 

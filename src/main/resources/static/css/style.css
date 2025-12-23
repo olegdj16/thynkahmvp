@@ -184,4 +184,21 @@ button:hover {
     white-space: pre-wrap;
 }
 
+/* small action buttons (used for Show more / Edit / Cancel, etc.) */
+.btn-small {
+    padding: 0.28rem 0.6rem;
+    font-size: 0.85rem;
+    border-radius: 6px;
+    line-height: 1.1;
+}
+
+.btn-secondary {
+    background: #f0f1ff;
+    color: #3b3db0;
+    border: 1px solid #cfd2ff;
+}
+
+.btn-secondary:hover {
+    background: #e2e4ff;
+}
 
