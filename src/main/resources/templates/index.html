@@ -2,16 +2,68 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Thynkah</title>
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <title>Thynkah — Browse</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}" />
 
     <style>
-        .note-card-highlight {
-            background-color: #fff7c2; /* soft yellow */
-            transition: background-color 0.8s ease;
+        .row { display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; }
+        .muted { opacity:0.75; font-size:0.9em; }
+
+        .toolbar { margin: 0.75rem 0; }
+        #noteSearch { width: min(720px, 100%); padding: 0.5rem; }
+
+        .note-meta { margin-top:0.35rem; opacity:0.85; font-size:0.9em; }
+        .chip {
+            display:inline-block;
+            background:#eee;
+            padding:2px 8px;
+            margin:2px 4px 2px 0;
+            border-radius:12px;
+            font-size:0.85em;
+            cursor:pointer;
         }
 
-        /* simple toast */
+        .note-preview {
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 5;
+            -webkit-box-orient: vertical;
+            white-space: normal;
+        }
+        .note-full { display:none; }
+
+        code { padding: 0.1rem 0.25rem; border-radius: 4px; background: #f2f2f2; }
+
+        /* Small buttons consistent with your global button style */
+        .btn-small { padding: 0.28rem 0.6rem; font-size: 0.85rem; border-radius: 6px; line-height: 1.1; }
+        .btn-secondary { background: #f0f1ff; color: #3b3db0; border: 1px solid #cfd2ff; }
+        .btn-secondary:hover { background: #e2e4ff; }
+
+        .edit-area { width:100%; margin-top:0.5rem; display:none; }
+        .edit-textarea { width:100%; min-height:140px; }
+        .edit-input { width:100%; }
+
+        .note-ai {
+            margin-top:0.5rem;
+            padding:0.5rem 0.6rem;
+            border:1px solid #ddd;
+            border-radius:8px;
+            background:#fff;
+            font-size:0.9em;
+            white-space:pre-wrap;
+        }
+
+        .ai-panel {
+            display:none;
+            margin-top:0.5rem;
+            border-top:1px solid #ddd;
+            padding-top:0.5rem;
+            font-size:0.85em;
+        }
+        .ai-panel textarea { width:100%; }
+        .ai-panel input { width:100%; }
+
+        /* Toast */
         #toast {
             position: fixed;
             bottom: 1rem;
@@ -25,26 +77,7 @@
             display: none;
             z-index: 9999;
         }
-
-        .note-card {
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            background-color: #fdfdfd;
-        }
-        .chip {
-            display: inline-block;
-            background-color: #eee;
-            padding: 2px 8px;
-            margin: 2px 4px 2px 0;
-            border-radius: 12px;
-            font-size: 0.85em;
-            color: #333;
-            cursor: pointer;
-        }
     </style>
-
 </head>
 
 <body>
@@ -52,115 +85,144 @@
 <h1>🧠 Thynkah</h1>
 
 <div id="headerArea">
-<!--    <nav class="navbar">-->
-<!--        <a th:href="@{/}">🧠 Home</a>-->
-<!--        <a th:href="@{/calendar}">📅 Calendar</a>-->
-<!--    </nav>-->
-
-<!--    <textarea id="question" placeholder="Ask your brain something..."></textarea>-->
-<!--    <div style="margin-top: 0.5rem;">-->
-<!--        <button onclick="askQuestion()">Ask</button>-->
-<!--        <button onclick="savePrompt()">Save Prompt</button>-->
-<!--    </div>-->
-
-<!--    <select id="savedPrompts" onchange="fillPrompt(this)" style="margin-top: 0.5rem;">-->
-<!--        <option value="">🔽 Select a saved prompt</option>-->
-<!--    </select>-->
-
     <nav class="navbar">
         <a th:href="@{/add}">➕ Add</a>
         <a th:href="@{/browse}">📋 Browse</a>
         <a th:href="@{/askui}">💬 Ask</a>
         <a th:href="@{/calendar}">📅 Calendar</a>
     </nav>
-
-
 </div>
 
+<h2>Browse Notes</h2>
 
-
-
-<!-- updated 12.04.2025 -->
-
-<!--<p id="response"></p>-->
-
-<div style="margin-top: 0.5rem;">
-    <strong>Answer:</strong>
-    <p id="response"></p>
-</div>
-
-<div style="margin-top: 0.5rem;">
-    <strong>Most relevant note:</strong>
-    <p id="mostRelevantNote"></p>
-</div>
-
-<!-- end updated 12.04.2025 -->
-
-
-<hr />
-
-<div class="note-input-block">
-    <div class="note-toolbar">
-        <button type="button" onclick="wrapSelection('**','**')"><b>B</b></button>
-        <button type="button" onclick="wrapSelection('_','_')"><i>I</i></button>
-        <button type="button" onclick="insertPrefix('- ')">•</button>
-        <button type="button" onclick="insertPrefix('1. ')">1.</button>
+<div class="toolbar">
+    <input id="noteSearch" type="text"
+           placeholder="Search notes or tags (e.g., dentist, #work, idea)…"
+           oninput="applySearchFilter()" />
+    <div class="row" style="margin-top:0.5rem;">
+        <span class="muted">Filtering current page. Use Prev/Next for more.</span>
+        <button class="btn-small btn-secondary" type="button" onclick="clearSearch()">Clear</button>
     </div>
-
-    <textarea id="note"
-              name="text"
-              rows="8"
-              placeholder="Paste your journal entry or idea... You can use **bold**, _italic_, etc."></textarea>
 </div>
 
-<input id="tag" placeholder="Tags (comma-separated)" />
-<button onclick="uploadNote()">Upload Note</button>
+<hr/>
 
-<hr />
+<div class="pagination">
+    <span th:text="'Notes: ' + ${notesPage.totalElements}"></span>
 
+    <a th:if="${notesPage.hasPrevious()}"
+       th:href="@{/browse(page=${notesPage.number - 1}, size=${size})}">
+        Prev
+    </a>
 
+    <span th:text="'Page ' + (${notesPage.number + 1}) + ' / ' + ${notesPage.totalPages}"></span>
 
-<h3>📋 Your Notes</h3>
-
-<div style="margin-bottom:0.5rem;">
-    <label for="noteSearch">Search notes (text or tags):</label>
-    <input type="text" id="noteSearch" placeholder="Type to filter..." oninput="applySearchFilter()" />
+    <a th:if="${notesPage.hasNext()}"
+       th:href="@{/browse(page=${notesPage.number + 1}, size=${size})}">
+        Next
+    </a>
 </div>
 
-<div id="dayFilter" style="margin-bottom: 0.5rem;">
-    <label for="day">View notes for:</label>
-    <input type="date" id="day" />
-    <button onclick="showNotesForDay()">Show</button>
-    <button onclick="clearDayFilter()">Show all</button>
-    <button onclick="askAboutSelectedDay()">Ask about this day</button>
+<div id="notesContainer">
+    <div th:each="note : ${notes}"
+         class="note-card"
+         th:attr="data-id=${note.id},data-text=${note.text},data-tag=${note.tag}">
+
+        <!-- Display blocks -->
+        <div class="note-preview"></div>
+        <div class="note-full"></div>
+
+        <!-- Meta -->
+        <div class="note-meta">
+            <span class="muted">
+                <span th:text="${#temporals.format(note.createdAt, 'yyyy-MM-dd HH:mm')}"></span>
+            </span>
+        </div>
+
+        <!-- Tags -->
+        <div class="note-meta" th:if="${note.tag != null && !#strings.isEmpty(note.tag)}">
+            <strong>Tags:</strong>
+            <span th:each="t : ${#strings.arraySplit(note.tag, ',')}"
+                  class="chip"
+                  th:text="${#strings.trim(t)}"
+                  th:attr="data-chip=${#strings.trim(t)}"
+                  onclick="filterByChip(this)">
+            </span>
+        </div>
+
+        <!-- Actions (restored: Show more, Edit text, Edit tag, AI, Delete) -->
+        <div class="row" style="margin-top:0.5rem;">
+            <button type="button" class="btn-small btn-secondary" onclick="toggleNote(this)">Show more</button>
+            <button type="button" class="btn-small btn-secondary" onclick="startEditText(this)">Edit text</button>
+            <button type="button" class="btn-small btn-secondary" onclick="startEditTag(this)">Edit tag</button>
+            <button type="button" class="btn-small btn-secondary" onclick="askNoteCombined(this)">🧠 AI</button>
+
+            <!-- Delete: inline confirm, no browser popup -->
+            <button type="button" class="btn-small" onclick="showDeleteConfirm(this)">🗑 Delete</button>
+
+            <div class="delete-confirm" style="display:none;">
+                <span class="muted" style="margin-right:0.5rem;">Delete?</span>
+                <button type="button" class="btn-small" onclick="confirmDelete(this)">Proceed</button>
+                <button type="button" class="btn-small btn-secondary" onclick="hideDeleteConfirm(this)">Cancel</button>
+            </div>
+        </div>
+
+        <!-- Edit Text Area -->
+        <div class="edit-area edit-text">
+            <textarea class="edit-textarea"></textarea>
+            <div class="row" style="margin-top:0.5rem;">
+                <button type="button" class="btn-small" onclick="saveEditText(this)">Save</button>
+                <button type="button" class="btn-small btn-secondary" onclick="cancelEdit(this)">Cancel</button>
+                <span class="muted">Formatting supported: **bold**, *italic*, `code`</span>
+            </div>
+        </div>
+
+        <!-- Edit Tag Area -->
+        <div class="edit-area edit-tag">
+            <input class="edit-input" placeholder="Tags (comma-separated)" />
+            <div class="row" style="margin-top:0.5rem;">
+                <button type="button" class="btn-small" onclick="saveEditTag(this)">Save</button>
+                <button type="button" class="btn-small btn-secondary" onclick="cancelEdit(this)">Cancel</button>
+            </div>
+        </div>
+
+        <!-- AI output -->
+        <div class="note-ai" style="display:none;"></div>
+
+        <div class="row" style="margin-top:0.35rem;">
+            <button type="button" class="btn-small btn-secondary ai-save-btn" style="display:none;" onclick="openAiSavePanel(this)">
+                Save AI as note
+            </button>
+        </div>
+
+        <!-- AI Save Panel -->
+        <div class="ai-panel">
+            <div class="row" style="margin-bottom:0.25rem;">
+                <label><input type="radio" value="both"> Both</label>
+                <label><input type="radio" value="summary" checked> Summary</label>
+                <label><input type="radio" value="tasks"> Tasks</label>
+            </div>
+
+            <label class="muted">Tags:</label>
+            <input type="text" class="ai-tags" />
+
+            <label class="muted" style="margin-top:0.25rem;">Note text:</label>
+            <textarea rows="4" class="ai-text"></textarea>
+
+            <div class="row" style="margin-top:0.35rem;">
+                <button type="button" class="btn-small" onclick="confirmSaveAiNote(this)">Save</button>
+                <button type="button" class="btn-small btn-secondary" onclick="cancelSaveAiNote(this)">Cancel</button>
+            </div>
+        </div>
+
+    </div>
 </div>
 
-<div style="margin-top:0.5rem;">
-    <strong>Day summary:</strong>
-    <p id="daySummary"></p>
-</div>
-<div style="margin-top:0.5rem;">
-    <strong>Most relevant note (that day):</strong>
-    <p id="dayMostRelevant"></p>
-</div>
+<div id="toast"></div>
 
-<div id="notesPager" style="margin-bottom:0.5rem;"></div>
-<div id="notesList"></div>
-
-<script th:inline="javascript">
-    /*<![CDATA[*/
-    let allNotes = []; // notes currently loaded (all or for a specific day)
-    let currentPage = 0;
-    let pageSize = 10;
-    let totalPages = 1;
-
-    /*part of highlight function*/
-    function escapeRegExp(str) {
-        return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    }
-
-    function escapeHtml(str) {
-        return (str || "")
+<script>
+    function escapeHtml(s) {
+        return (s || "")
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;")
@@ -168,493 +230,251 @@
             .replace(/'/g, "&#39;");
     }
 
-    // very small markdown → HTML renderer
-    function renderMarkdown(text) {
-        let html = escapeHtml(text || "");
-
-        // **bold**
-        html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-
-        // _italic_
-        html = html.replace(/_(.+?)_/g, "<em>$1</em>");
-
-        // line breaks
-        html = html.replace(/\n/g, "<br>");
-
-        return html;
+    function formatText(raw) {
+        let s = escapeHtml(raw);
+        s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+        s = s.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+        s = s.replace(/(^|[^*])\*([^*]+)\*/g, "$1<i>$2</i>");
+        s = s.replace(/\r?\n/g, "<br>");
+        return s;
     }
 
-    function highlightText(text, query) {
-        let html = renderMarkdown(text || "");
-
-        const q = (query || "").trim();
-        if (!q) return html;
-
-        const pattern = new RegExp("(" + escapeRegExp(q) + ")", "gi");
-        return html.replace(pattern, "<mark>$1</mark>");
+    function showToast(message) {
+        const toast = document.getElementById("toast");
+        if (!toast) return;
+        toast.innerText = message;
+        toast.style.display = "block";
+        setTimeout(() => toast.style.display = "none", 1400);
     }
 
-
-    /*part of highlight function*/
-
-    async function uploadNote() {
-        const text = document.getElementById("note").value;
-        const tag = document.getElementById("tag").value;
-        if (!text.trim()) return;
-        await fetch("/notes", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text, tag }),
-        });
-        document.getElementById("note").value = "";
-        document.getElementById("tag").value = "";
-        loadNotes();
+    function getCard(el) {
+        return el.closest(".note-card");
     }
 
-    /*updated 12.04.2025 */
+    function getId(card) {
+        return card.getAttribute("data-id");
+    }
 
+    function renderCard(card, queryLower) {
+        const raw = card.getAttribute("data-text") || "";
+        const tag = card.getAttribute("data-tag") || "";
 
+        const preview = card.querySelector(".note-preview");
+        const full = card.querySelector(".note-full");
 
+        let html = formatText(raw);
 
-
-
-
-
-    async function askQuestion() {
-        const questionEl = document.getElementById("question");
-        const answerEl = document.getElementById("response");
-        const noteEl = document.getElementById("mostRelevantNote");
-
-        const question = (questionEl.value || "").trim();
-        if (!question) {
-            answerEl.innerText = "Please type a question first.";
-            return;
+        // simple highlight (text only)
+        const q = (queryLower || "").trim();
+        if (q) {
+            const safe = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            const re = new RegExp("(" + safe + ")", "gi");
+            html = html.replace(re, "<mark>$1</mark>");
         }
 
-        answerEl.innerText = "Thinking...";
-        noteEl.innerText = "";
+        if (preview) preview.innerHTML = html;
+        if (full) full.innerHTML = html;
 
-        try {
-            const res = await fetch("/ask", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ question }),
-            });
+        // keep collapsed by default
+        if (preview) preview.style.display = "-webkit-box";
+        if (full) full.style.display = "none";
 
-            if (!res.ok) {
-                answerEl.innerText = "Server error: " + res.status;
-                return;
-            }
+        // hide edit areas
+        const editAreas = card.querySelectorAll(".edit-area");
+        editAreas.forEach(a => a.style.display = "none");
 
-            const data = await res.json();
+        // delete confirm reset
+        const delConfirm = card.querySelector(".delete-confirm");
+        if (delConfirm) delConfirm.style.display = "none";
 
-            // AI-generated answer from NoteService.answerQuestion(...)
-            answerEl.innerText = data.answer || "I couldn't generate an answer.";
+        // AI blocks keep as-is (do not wipe)
+    }
 
-            // Underneath, show which note was used (if any)
-            if (data.noteText) {
-                noteEl.innerText = data.noteText;
-            } else {
-                noteEl.innerText = "No relevant note found.";
-            }
+    document.addEventListener("DOMContentLoaded", () => {
+        document.querySelectorAll(".note-card").forEach(card => renderCard(card, ""));
+    });
 
-            // HIDE saved prompts (keep your existing behavior)
-            document.getElementById("savedPrompts").style.display = "none";
-        } catch (e) {
-            console.error(e);
-            answerEl.innerText = "Error talking to the server.";
+    function toggleNote(btn) {
+        const card = getCard(btn);
+        const preview = card.querySelector(".note-preview");
+        const full = card.querySelector(".note-full");
+
+        // don't toggle if editing
+        const isEditing = [...card.querySelectorAll(".edit-area")].some(a => a.style.display === "block");
+        if (isEditing) return;
+
+        const expanded = full.style.display === "block";
+        if (expanded) {
+            full.style.display = "none";
+            preview.style.display = "-webkit-box";
+            btn.innerText = "Show more";
+        } else {
+            full.style.display = "block";
+            preview.style.display = "none";
+            btn.innerText = "Show less";
         }
-    }
-
-    /*end updated 12.04.2025 */
-
-
-    async function savePrompt() {
-        const prompt = document.getElementById("question").value.trim();
-        if (!prompt) return;
-        await fetch("/prompts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt }),
-        });
-        loadSavedPrompts();
-    }
-
-    async function loadSavedPrompts() {
-        const res = await fetch("/prompts");
-        const prompts = await res.json();
-        const dropdown = document.getElementById("savedPrompts");
-        dropdown.innerHTML = '<option value="">🔽 Select a saved prompt</option>';
-        prompts.forEach(p => {
-            const opt = document.createElement("option");
-            opt.value = p.prompt;
-            opt.textContent = p.prompt;
-            dropdown.appendChild(opt);
-        });
-    }
-
-    function fillPrompt(select) {
-        const selected = select.value;
-        if (selected) {
-            document.getElementById("question").value = selected;
-        }
-    }
-
-    function renderNotes(notes, query) {
-        const container = document.getElementById("notesList");
-        container.innerHTML = "";
-
-        const q = (query || "").trim();  // current search string
-
-        notes.forEach(n => {
-            const div = document.createElement("div");
-            div.className = "note-card";
-            div.id = `note-${n.id}`;   // <— for later highlighting
-
-
-            const tags = (n.tag || "").split(",").map(t => t.trim()).filter(Boolean);
-
-            const tagHTML = `
-  <details class="note-tags" style="margin-bottom:0.5rem;">
-    <summary style="cursor:pointer; color:#666; font-size:0.85rem;">
-      Tags${tags.length ? ` (${tags.length})` : ""}
-    </summary>
-    <div id="tag-display-${n.id}" style="margin-top:0.35rem;">
-      ${
-                tags.length
-                    ? tags.map(tag => `<span class="chip">${highlightText(tag, q)}</span>`).join(" ")
-                    : `<em style="color:#aaa;">No tags</em>`
-            }
-    </div>
-  </details>
-`;
-
-
-            const highlightedText = highlightText(n.text || "", q); //part of highlight function
-
-            div.innerHTML = `
-    ${tagHTML}
-    <input id="tag-input-${n.id}" value="${n.tag || ""}" style="display:none; width:100%" />
-
-    <p id="text-display-${n.id}" class="note-text">${highlightedText}</p>
-    <textarea id="text-input-${n.id}" style="display:none;">${n.text}</textarea>
-
-    <small style="color:#666;">🕒 ${new Date(n.createdAt).toLocaleString()}</small>
-
-<div class="note-actions" id="actions-${n.id}">
-    <button onclick="enableTextEdit(${n.id})">✏️</button>
-    <button onclick="enableTagEdit(${n.id})">🏷️</button>
-    <button onclick="askNoteCombined(${n.id})">🧠</button>
-    <button onclick="showDeleteConfirm(${n.id})">🗑️</button>
-</div>
-
-    <div class="note-actions" id="edit-actions-${n.id}" style="display:none;">
-        <button onclick="submitEdits(${n.id})">💾</button>
-        <button onclick="cancelEdits(${n.id})">❌</button>
-    </div>
-
-    <div class="note-actions" id="confirm-delete-${n.id}" style="display:none;">
-        <button onclick="deleteNote(${n.id})">✔️</button>
-        <button onclick="cancelDelete(${n.id})">❌</button>
-    </div>
-
-<div id="note-ai-${n.id}" style="margin-top:0.5rem; font-size:0.9em; color:#333;"></div>
-
-<button id="note-ai-save-${n.id}"
-        style="display:none; margin-top:0.25rem; font-size:0.8em;"
-        onclick="openAiSavePanel(${n.id})">
-    Save AI as note
-</button>
-
-<div id="note-ai-panel-${n.id}"
-     style="display:none; margin-top:0.5rem; border-top:1px solid #ddd; padding-top:0.5rem; font-size:0.85em;">
-    <div style="margin-bottom:0.25rem;">
-        <label>
-            <input type="radio" name="ai-type-${n.id}" value="both">
-            Both
-        </label>
-        <label>
-            <input type="radio" name="ai-type-${n.id}" value="summary" checked>
-            Summary
-        </label>
-        <label>
-            <input type="radio" name="ai-type-${n.id}" value="tasks">
-            Tasks
-        </label>
-    </div>
-
-    <label>Tags:</label>
-    <input type="text" id="note-ai-tags-${n.id}" style="width:100%; margin-bottom:0.25rem;" />
-
-    <label>Note text:</label>
-    <textarea id="note-ai-text-${n.id}" rows="4" style="width:100%;"></textarea>
-
-    <div style="margin-top:0.25rem;">
-        <button onclick="confirmSaveAiNote(${n.id})">Save</button>
-        <button onclick="cancelSaveAiNote(${n.id})">Cancel</button>
-    </div>
-</div>
-
-`;
-            container.appendChild(div);
-        });
-    }
-
-    function openAiSavePanel(id) {
-        const aiDiv   = document.getElementById(`note-ai-${id}`);
-        const panel   = document.getElementById(`note-ai-panel-${id}`);
-        const tagsInp = document.getElementById(`note-ai-tags-${id}`);
-        const textInp = document.getElementById(`note-ai-text-${id}`);
-
-        if (!aiDiv || !panel || !tagsInp || !textInp) return;
-
-        const aiText = (aiDiv.innerText || "").trim();
-        textInp.value = aiText;
-        tagsInp.value = "ai"; // or "ai, summary", etc.
-
-        panel.style.display = "block";
-    }
-
-    function cancelSaveAiNote(id) {
-        const panel = document.getElementById(`note-ai-panel-${id}`);
-        if (panel) panel.style.display = "none";
-    }
-
-
-
-    async function loadNotes() {
-        try {
-            const res = await fetch(`/notes/page?page=${currentPage}&size=${pageSize}`);
-            if (!res.ok) throw new Error("Failed to fetch notes page");
-            const page = await res.json();
-
-            allNotes = page.content;
-            totalPages = page.totalPages;
-
-            applySearchFilter();
-            renderPager();
-        } catch (e) {
-            console.error("Error loading notes:", e);
-        }
-    }
-
-
-    async function showNotesForDay() {
-        const dayInput = document.getElementById("day");
-        const date = (dayInput.value || "").trim();
-        if (!date) {
-            return; // nothing selected
-        }
-
-        try {
-            const res = await fetch(`/notes/by-date?date=${encodeURIComponent(date)}`);
-            if (!res.ok) throw new Error("Failed to fetch notes for date");
-            const notes = await res.json();
-            allNotes = notes;
-            applySearchFilter(); // search within that day
-        } catch (e) {
-            console.error("Error loading notes for date:", e);
-        }
-    }
-
-    function clearDayFilter() {
-        const dayInput = document.getElementById("day");
-        dayInput.value = "";
-        loadNotes();
     }
 
     function applySearchFilter() {
-        const searchInput = document.getElementById("noteSearch");
-        const query = (searchInput ? searchInput.value : "").trim().toLowerCase();
-
-        if (!query) {
-            // no search → show all loaded notes, no highlight
-            renderNotes(allNotes, "");
-            return;
-        }
-
-        const filtered = allNotes.filter(n => {
-            const text = (n.text || "").toLowerCase();
-            const tags = (n.tag || "").toLowerCase();
-            return text.includes(query) || tags.includes(query);
+        const q = (document.getElementById("noteSearch")?.value || "").trim().toLowerCase();
+        const cards = document.querySelectorAll("#notesContainer .note-card");
+        cards.forEach(card => {
+            const text = (card.getAttribute("data-text") || "").toLowerCase();
+            const tag  = (card.getAttribute("data-tag") || "").toLowerCase();
+            const match = !q || text.includes(q) || tag.includes(q);
+            card.style.display = match ? "block" : "none";
+            if (match) renderCard(card, q);
         });
-
-        renderNotes(filtered, query);
     }
 
-    function filterByTag(tag) {
-        const searchInput = document.getElementById("noteSearch");
-        if (searchInput) {
-            searchInput.value = tag;
-        }
+    function clearSearch() {
+        const inp = document.getElementById("noteSearch");
+        if (inp) inp.value = "";
         applySearchFilter();
     }
 
-    async function confirmSaveAiNote(id) {
-        const panel   = document.getElementById(`note-ai-panel-${id}`);
-        const tagsInp = document.getElementById(`note-ai-tags-${id}`);
-        const textInp = document.getElementById(`note-ai-text-${id}`);
-        if (!panel || !tagsInp || !textInp) return;
+    function filterByChip(el) {
+        const tag = (el.getAttribute("data-chip") || "").trim();
+        const inp = document.getElementById("noteSearch");
+        if (inp) inp.value = tag;
+        applySearchFilter();
+    }
 
-        const text = (textInp.value || "").trim();
-        const tag  = (tagsInp.value || "").trim();
-        if (!text) return;
+    // -----------------------
+    // Inline delete confirm
+    // -----------------------
+    function showDeleteConfirm(btn) {
+        const card = getCard(btn);
+        const confirm = card.querySelector(".delete-confirm");
+        if (!confirm) return;
+        confirm.style.display = "inline-flex";
+        btn.style.display = "none";
+    }
+
+    function hideDeleteConfirm(btn) {
+        const card = getCard(btn);
+        const confirm = card.querySelector(".delete-confirm");
+        const deleteBtn = [...card.querySelectorAll("button")].find(b => (b.innerText || "").includes("Delete"));
+        if (confirm) confirm.style.display = "none";
+        if (deleteBtn) deleteBtn.style.display = "inline-block";
+    }
+
+    async function confirmDelete(btn) {
+        const card = getCard(btn);
+        const id = getId(card);
 
         try {
-            const res = await fetch("/notes", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text, tag })
-            });
+            const res = await fetch(`/notes/${id}`, { method: "DELETE" });
+            if (!res.ok) throw new Error("HTTP " + res.status);
 
-            if (!res.ok) {
-                console.error("Save failed:", res.status);
-                showToast("Failed to save AI note.");
-                return;
-            }
-
-            const saved = await res.json(); // Note object with id
-
-            panel.style.display = "none";
-            await loadNotes();
-
-            showToast("AI note saved.");
-            if (saved && saved.id) {
-                highlightNote(saved.id);
-            }
+            // remove card from DOM
+            card.remove();
+            showToast("Deleted");
         } catch (e) {
             console.error(e);
-            showToast("Error while saving AI note.");
+            showToast("Failed to delete");
+            hideDeleteConfirm(btn);
         }
     }
 
-    function getTextarea() {
-        return document.getElementById("note");
+    // -----------------------
+    // Edit Text / Tag
+    // -----------------------
+    function cancelEdit(btn) {
+        const card = getCard(btn);
+        // restore rendered view
+        renderCard(card, (document.getElementById("noteSearch")?.value || "").trim().toLowerCase());
     }
 
-    function wrapSelection(before, after) {
-        const ta = getTextarea();
-        const start = ta.selectionStart;
-        const end   = ta.selectionEnd;
+    function startEditText(btn) {
+        const card = getCard(btn);
+        const raw = card.getAttribute("data-text") || "";
 
-        const selected = ta.value.substring(start, end) || "";
-        const wrapped = before + selected + after;
+        card.querySelector(".note-preview").style.display = "none";
+        card.querySelector(".note-full").style.display = "none";
 
-        ta.value = ta.value.substring(0, start) + wrapped + ta.value.substring(end);
+        const area = card.querySelector(".edit-area.edit-text");
+        const ta = area.querySelector("textarea");
+        ta.value = raw;
+        area.style.display = "block";
         ta.focus();
-        ta.selectionStart = start + before.length;
-        ta.selectionEnd   = start + before.length + selected.length;
     }
 
-    function insertPrefix(prefix) {
-        const ta = getTextarea();
-        const start = ta.selectionStart;
-        const end   = ta.selectionEnd;
+    async function saveEditText(btn) {
+        const card = getCard(btn);
+        const id = getId(card);
+        const area = card.querySelector(".edit-area.edit-text");
+        const ta = area.querySelector("textarea");
+        const newText = (ta.value || "").trim();
 
-        // insert at start of current line(s)
-        const value = ta.value;
-        const lineStart = value.lastIndexOf("\n", start - 1) + 1;
-
-        ta.value = value.substring(0, lineStart) + prefix + value.substring(lineStart);
-        ta.focus();
-        ta.selectionStart = start + prefix.length;
-        ta.selectionEnd   = end + prefix.length;
-    }
-
-    function renderPager() {
-        const el = document.getElementById("notesPager");
-        if (!el) return;
-
-        const windowSize = 5; // change to 3 if you want
-        const total = Math.max(totalPages, 1);
-        const current = currentPage; // 0-based
-
-        // Compute start/end of window around current page
-        const half = Math.floor(windowSize / 2);
-        let start = Math.max(0, current - half);
-        let end = Math.min(total - 1, start + windowSize - 1);
-        start = Math.max(0, end - windowSize + 1);
-
-        // Build page buttons
-        let pagesHtml = "";
-        for (let i = start; i <= end; i++) {
-            const active = i === current;
-            pagesHtml += `
-  <button
-    ${active ? "disabled" : ""}
-    onclick="goToPage(${i})"
-    style="${
-                active
-                    ? "font-weight:bold; background:#FF6F61; color:#fff; border:1px solid #FF6F61;"
-                    : ""
-            }">
-    ${i + 1}
-  </button>
-`;
+        if (!newText) {
+            showToast("Text cannot be empty");
+            return;
         }
 
-        el.innerHTML = `
-    <button ${current <= 0 ? "disabled" : ""} onclick="prevPage()">Prev</button>
+        try {
+            const res = await fetch(`/notes/${id}/text`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: newText })
+            });
+            if (!res.ok) throw new Error("HTTP " + res.status);
 
-    ${start > 0 ? `<button onclick="goToPage(0)">1</button><span>...</span>` : ""}
-
-    ${pagesHtml}
-
-    ${end < total - 1 ? `<span>...</span><button onclick="goToPage(${total - 1})">${total}</button>` : ""}
-
-    <button ${current >= total - 1 ? "disabled" : ""} onclick="nextPage()">Next</button>
-
-    <span style="margin-left:0.75rem;">Page ${current + 1} / ${total}</span>
-
-    <span style="margin-left:0.75rem;">
-      Jump:
-      <input id="pageJump"
-             type="number"
-             min="1"
-             max="${total}"
-             style="width:70px;"
-             placeholder="#"
-             onkeydown="onJumpKey(event)" />
-      <button onclick="jumpToPage()">Go</button>
-    </span>
-  `;
+            card.setAttribute("data-text", newText);
+            showToast("Updated");
+            renderCard(card, (document.getElementById("noteSearch")?.value || "").trim().toLowerCase());
+        } catch (e) {
+            console.error(e);
+            showToast("Failed to update");
+        }
     }
 
-    function goToPage(pageIndex) {
-        const total = Math.max(totalPages, 1);
-        const safe = Math.min(Math.max(pageIndex, 0), total - 1);
-        if (safe === currentPage) return;
-        currentPage = safe;
-        loadNotes();
+    function startEditTag(btn) {
+        const card = getCard(btn);
+        const rawTag = card.getAttribute("data-tag") || "";
+
+        card.querySelector(".note-preview").style.display = "none";
+        card.querySelector(".note-full").style.display = "none";
+
+        const area = card.querySelector(".edit-area.edit-tag");
+        const inp = area.querySelector("input");
+        inp.value = rawTag;
+        area.style.display = "block";
+        inp.focus();
     }
 
-    function jumpToPage() {
-        const input = document.getElementById("pageJump");
-        if (!input) return;
+    async function saveEditTag(btn) {
+        const card = getCard(btn);
+        const id = getId(card);
+        const area = card.querySelector(".edit-area.edit-tag");
+        const inp = area.querySelector("input");
+        const newTag = (inp.value || "").trim();
 
-        const total = Math.max(totalPages, 1);
-        const val = parseInt(input.value, 10);
-        if (Number.isNaN(val)) return;
+        try {
+            const res = await fetch(`/notes/${id}/tag`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ tag: newTag })
+            });
+            if (!res.ok) throw new Error("HTTP " + res.status);
 
-        // user enters 1-based page number
-        const targetIndex = Math.min(Math.max(val, 1), total) - 1;
-        goToPage(targetIndex);
+            card.setAttribute("data-tag", newTag);
+            showToast("Tag updated");
+            renderCard(card, (document.getElementById("noteSearch")?.value || "").trim().toLowerCase());
+
+            // reload page to refresh tag chips rendered by Thymeleaf (optional)
+            // location.reload();
+        } catch (e) {
+            console.error(e);
+            showToast("Failed to update tag");
+        }
     }
 
-    function onJumpKey(e) {
-        if (e.key === "Enter") jumpToPage();
-    }
-
-
-    function prevPage() { goToPage(currentPage - 1); }
-    function nextPage() { goToPage(currentPage + 1); }
-
-
-
-
-
-    async function askNoteCombined(id) {
-        const prompt = `
+    // -----------------------
+    // AI per note + Save AI as note
+    // -----------------------
+    function buildAiPrompt() {
+        return `
 You are Thynkah, a personal journaling assistant.
 You see one diary note written in first person. Do TWO things:
 
@@ -668,14 +488,9 @@ You see one diary note written in first person. Do TWO things:
    - Be under the writer’s direct control.
 
 Important constraints:
-- Do NOT create tasks for things outside the writer’s control
-  (e.g. cleaning or repairing company showers, changing other people, fixing public systems).
-- Do NOT turn pure complaints or observations into tasks unless the writer explicitly
-  indicates they want to act on it (e.g. "I should complain to the manager about the shower").
+- Do NOT create tasks for things outside the writer’s control.
 - If you’re unsure whether something is a task for the writer, leave it out.
-- It is better to return fewer tasks than to invent ones.
-
-Return plain text in this exact structure:
+- Return plain text in this exact structure:
 
 Summary:
 <2–3 sentences>
@@ -688,200 +503,91 @@ Possible next steps:
 If there are no suitable actions, write:
 Possible next steps:
 No actionable tasks found for the user.
-`;
-
-        await askNoteWithPrompt(id, prompt);
+`.trim();
     }
 
+    async function askNoteCombined(btn) {
+        const card = getCard(btn);
+        const id = getId(card);
 
-    async function askNoteWithPrompt(id, question) {
-        const container = document.getElementById(`note-ai-${id}`);
-        const saveBtn   = document.getElementById(`note-ai-save-${id}`);
-        if (!container) return;
+        const aiBox = card.querySelector(".note-ai");
+        const saveBtn = card.querySelector(".ai-save-btn");
+        if (!aiBox) return;
 
-        container.innerText = "Thinking...";
+        aiBox.style.display = "block";
+        aiBox.innerText = "Thinking...";
         if (saveBtn) saveBtn.style.display = "none";
 
         try {
             const res = await fetch(`/ask/note/${id}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ question })
+                body: JSON.stringify({ question: buildAiPrompt() })
             });
-
-            if (!res.ok) {
-                container.innerText = "Server error: " + res.status;
-                return;
-            }
+            if (!res.ok) throw new Error("HTTP " + res.status);
 
             const data = await res.json();
-            const answer = data.answer || "I couldn't generate anything for this note.";
-            container.innerText = answer;
+            const answer = (data.answer || "").trim() || "I couldn't generate anything for this note.";
+            aiBox.innerText = answer;
 
-            if (saveBtn && answer.trim()) {
-                saveBtn.style.display = "inline-block";
-            }
+            if (saveBtn && answer) saveBtn.style.display = "inline-block";
         } catch (e) {
             console.error(e);
-            container.innerText = "Error talking to the server.";
+            aiBox.innerText = "Error talking to the server.";
         }
     }
 
-    function showToast(message) {
-        const toast = document.getElementById("toast");
-        if (!toast) return;
+    function openAiSavePanel(btn) {
+        const card = getCard(btn);
+        const aiBox = card.querySelector(".note-ai");
+        const panel = card.querySelector(".ai-panel");
+        const tags = panel.querySelector(".ai-tags");
+        const text = panel.querySelector(".ai-text");
 
-        toast.innerText = message;
-        toast.style.display = "block";
+        const aiText = (aiBox?.innerText || "").trim();
+        text.value = aiText;
+        tags.value = "ai";
 
-        setTimeout(() => {
-            toast.style.display = "none";
-        }, 2000); // 2 seconds
+        panel.style.display = "block";
     }
 
-    function highlightNote(id) {
-        const el = document.getElementById(`note-${id}`);
-        if (!el) return;
-
-        el.classList.add("note-card-highlight");
-        setTimeout(() => {
-            el.classList.remove("note-card-highlight");
-        }, 1500); // highlight lasts 1.5 seconds
+    function cancelSaveAiNote(btn) {
+        const card = getCard(btn);
+        const panel = card.querySelector(".ai-panel");
+        if (panel) panel.style.display = "none";
     }
 
+    async function confirmSaveAiNote(btn) {
+        const card = getCard(btn);
+        const panel = card.querySelector(".ai-panel");
+        const tags = panel.querySelector(".ai-tags");
+        const text = panel.querySelector(".ai-text");
 
+        const noteText = (text.value || "").trim();
+        const tag = (tags.value || "").trim();
 
-
-
-
-    async function askAboutSelectedDay() {
-        const dayInput = document.getElementById("day");
-        const date = (dayInput.value || "").trim();
-
-        const answerEl = document.getElementById("daySummary");
-        const noteEl   = document.getElementById("dayMostRelevant");
-
-        if (!date) {
-            answerEl.innerText = "Select a day first.";
-            noteEl.innerText = "";
+        if (!noteText) {
+            showToast("AI text is empty");
             return;
         }
 
-        answerEl.innerText = "Thinking...";
-        noteEl.innerText   = "";
-
         try {
-            const res = await fetch("/ask/day", {
+            const res = await fetch("/notes", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ date })
+                body: JSON.stringify({ text: noteText, tag })
             });
 
-            if (!res.ok) {
-                answerEl.innerText = "Server error: " + res.status;
-                return;
-            }
+            if (!res.ok) throw new Error("HTTP " + res.status);
 
-            const data = await res.json();
-            answerEl.innerText = data.answer || "I couldn't generate a summary.";
-
-            if (data.noteText) {
-                noteEl.innerText = data.noteText;
-            } else {
-                noteEl.innerText = "No single note stood out for that day.";
-            }
-
-            // ensure the list below also shows that day's notes
-            await showNotesForDay();
-
+            panel.style.display = "none";
+            showToast("AI note saved");
         } catch (e) {
             console.error(e);
-            answerEl.innerText = "Error talking to the server.";
+            showToast("Failed to save AI note");
         }
     }
-
-
-
-
-
-
-    function enableTextEdit(id) {
-        document.getElementById(`text-display-${id}`).style.display = "none";
-        document.getElementById(`text-input-${id}`).style.display = "block";
-        document.getElementById(`actions-${id}`).style.display = "none";
-        document.getElementById(`edit-actions-${id}`).style.display = "flex";
-    }
-
-    function enableTagEdit(id) {
-        document.getElementById(`tag-display-${id}`).style.display = "none";
-        document.getElementById(`tag-input-${id}`).style.display = "block";
-        document.getElementById(`actions-${id}`).style.display = "none";
-        document.getElementById(`edit-actions-${id}`).style.display = "flex";
-    }
-
-    async function submitEdits(id) {
-        const newText = document.getElementById(`text-input-${id}`).value;
-        const newTag = document.getElementById(`tag-input-${id}`).value;
-
-        const resText = await fetch(`/notes/${id}/text`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: newText }),
-        });
-
-        const resTag = await fetch(`/notes/${id}/tag`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ tag: newTag }),
-        });
-
-        if (resText.ok && resTag.ok) {
-            await loadNotes();
-        }
-    }
-
-    function cancelEdits(id) {
-        document.getElementById(`text-input-${id}`).style.display = "none";
-        document.getElementById(`tag-input-${id}`).style.display = "none";
-        document.getElementById(`text-display-${id}`).style.display = "block";
-        document.getElementById(`tag-display-${id}`).style.display = "block";
-        document.getElementById(`actions-${id}`).style.display = "flex";
-        document.getElementById(`edit-actions-${id}`).style.display = "none";
-    }
-
-    function showDeleteConfirm(id) {
-        document.getElementById(`actions-${id}`).style.display = "none";
-        document.getElementById(`confirm-delete-${id}`).style.display = "flex";
-    }
-
-    function cancelDelete(id) {
-        document.getElementById(`confirm-delete-${id}`).style.display = "none";
-        document.getElementById(`actions-${id}`).style.display = "flex";
-    }
-
-    async function deleteNote(id) {
-        await fetch(`/notes/${id}`, { method: "DELETE" });
-        loadNotes();
-    }
-
-    window.onload = () => {
-        loadNotes();
-        loadSavedPrompts();
-
-        const container = document.getElementById("notesList");
-        container.addEventListener("click", function (e) {
-            const chip = e.target.closest(".chip");
-            if (!chip) return;
-
-            const tagText = (chip.textContent || "").trim();
-            filterByTag(tagText);
-        });
-    };
-
-    /*]]>*/
 </script>
 
-
-<div id="toast"></div>
 </body>
 </html>

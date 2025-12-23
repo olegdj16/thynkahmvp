@@ -5,7 +5,10 @@ import com.thynkah.repository.NoteRepository;
 import com.thynkah.service.NoteService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -27,10 +30,6 @@ public class NoteController {
     this.noteService = noteService;
     this.noteRepository = noteRepository;
   }
-
-
-
-
 
     @GetMapping("/add")
     public String addNotePage() {
@@ -186,36 +185,53 @@ public class NoteController {
     }
 
     @GetMapping("/")
-    public String home() {
-        return "redirect:/add";
-    }
+    public String home(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Model model
+    ) {
+        Page<Note> notesPage = noteRepository.findAll(
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))
+        );
 
-    @GetMapping("/browse")
-    public String browse() {
+        model.addAttribute("notesPage", notesPage);
+        model.addAttribute("notes", notesPage.getContent()); // if your template iterates notes
+        model.addAttribute("page", page);
+        model.addAttribute("size", size);
+
         return "index";
     }
 
-    @GetMapping("/notes/view")
-    public String notesView(
-            @RequestParam(defaultValue="0") int page,
-            @RequestParam(defaultValue="10") int size,
+    @GetMapping("/browse")
+    public String browse(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
             Model model
     ) {
-        Page<Note> notesPage = noteService.getNotesPage(page, size);
+        Page<Note> notesPage = noteRepository.findAll(
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))
+        );
 
-        model.addAttribute("noteForm", new Note());
         model.addAttribute("notesPage", notesPage);
         model.addAttribute("notes", notesPage.getContent());
         model.addAttribute("page", page);
         model.addAttribute("size", size);
 
-        return "notes";
+        return "index"; // your browse template is index.html
+    }
+
+    @GetMapping("/notes/view")
+    public String notesViewRedirect(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return "redirect:/browse?page=" + page + "&size=" + size;
     }
 
     @PostMapping("/notes/view")
     public String saveNoteFromForm(@ModelAttribute("noteForm") Note noteForm) {
         noteService.save(noteForm);
-        return "redirect:/notes/view";
+        return "redirect:/browse";
     }
 
     @GetMapping(value = "/notes/page", produces = "application/json")
@@ -227,7 +243,6 @@ public class NoteController {
         return noteService.getNotesPage(page, size);
     }
 
-
     @PostMapping("/notes/delete/{id}")
     public String deleteFromNotesView(
             @PathVariable Long id,
@@ -235,8 +250,29 @@ public class NoteController {
             @RequestParam(defaultValue="10") int size
     ) {
         noteService.delete(id);
-        return "redirect:/notes/view?page=" + page + "&size=" + size;
+        return "redirect:/browse?page=" + page + "&size=" + size;
     }
 
+    @PostMapping(path = "/notes/update/{id}", consumes = "application/json")
+    @ResponseBody
+    public ResponseEntity<?> updateNoteText(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        Object textObj = payload.get("text");
+        String text = textObj == null ? "" : textObj.toString().trim();
+
+        if (text.isEmpty()) {
+            return ResponseEntity.badRequest().body("text is required");
+        }
+
+        Optional<Note> opt = noteRepository.findById(id);
+        if (!opt.isPresent()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Note note = opt.get();
+        note.setText(text);
+        noteRepository.save(note);
+
+        return ResponseEntity.ok().build();
+    }
 
 }
