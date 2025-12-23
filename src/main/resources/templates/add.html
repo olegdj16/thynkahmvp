@@ -42,6 +42,17 @@
 
 <h2>Add Note</h2>
 
+<div class="note-input-block">
+    <div class="note-toolbar" aria-label="Formatting toolbar">
+        <button type="button" onclick="applyFormat('bold')" title="Bold"><b>B</b></button>
+        <button type="button" onclick="applyFormat('italic')" title="Italic"><i>I</i></button>
+        <button type="button" onclick="applyFormat('code')" title="Code"><code>&lt;/&gt;</code></button>
+    </div>
+</div>
+
+<div class="muted" style="margin-top:0.5rem;">
+    Formatting: <code>**bold**</code> <code>*italic*</code> <code>`code`</code>
+</div>
 <textarea id="note"
           name="text"
           rows="10"
@@ -53,10 +64,6 @@
     <button id="saveBtn" onclick="uploadNote()">Save</button>
     <button id="clearBtn" class="btn-tertiary" onclick="clearForm()">Clear</button>
     <span class="muted">Tip: Ctrl/⌘ + Enter to save</span>
-</div>
-
-<div class="muted" style="margin-top:0.5rem;">
-    Formatting: <code>**bold**</code> <code>*italic*</code> <code>`code`</code>
 </div>
 
 <div style="margin-top:0.75rem;">
@@ -97,6 +104,7 @@
             .replace(/'/g, "&#39;");
     }
 
+    // start formatting
     function formatText(raw) {
         // Escape first to prevent HTML injection
         let s = escapeHtml(raw);
@@ -111,6 +119,39 @@
         s = s.replace(/\r?\n/g, "<br>");
         return s;
     }
+
+    function applyFormat(type) {
+        const ta = document.getElementById("note");
+        if (!ta) return;
+
+        const map = {
+            bold: ["**", "**"],
+            italic: ["*", "*"],
+            code: ["`", "`"]
+        };
+
+        const [left, right] = map[type] || ["", ""];
+        const start = ta.selectionStart ?? 0;
+        const end = ta.selectionEnd ?? 0;
+
+        const value = ta.value || "";
+        const selected = value.substring(start, end);
+
+        // If nothing selected, insert markers and place cursor between them
+        if (!selected) {
+            const insert = left + right;
+            ta.value = value.substring(0, start) + insert + value.substring(end);
+            const cursor = start + left.length;
+            ta.setSelectionRange(cursor, cursor);
+        } else {
+            ta.value = value.substring(0, start) + left + selected + right + value.substring(end);
+            ta.setSelectionRange(start + left.length, end + left.length);
+        }
+
+        ta.focus();
+        renderPreview();
+    }
+    // end formatting
 
     function renderPreview() {
         const noteEl = document.getElementById("note");
