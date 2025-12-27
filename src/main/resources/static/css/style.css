@@ -1,119 +1,149 @@
-body {
-    font-family: 'Segoe UI', sans-serif;
-    max-width: 800px;
-    margin: 2rem auto;
-    padding: 1rem;
-    background: #f9f9fc;
-    color: #333;
+:root {
+    --bg: #f9f9fc;
+    --text: #333;
+    --brand: #6b63ff;
+    --brandHover: #5249db;
+
+    --cardBg: #fff;
+    --border: #ccc;
+
+    --max: 800px;
 }
 
+/* Base */
+* { box-sizing: border-box; }
+
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 0;
+}
+
+main {
+    max-width: var(--max);
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+/* Typography spacing */
+h1, h2 { margin: 0.75rem 0; }
+
+/* Controls */
 input, textarea, select, button {
-    font-size: 0.95rem;
-    padding: 0.4rem 0.6rem;
+    font-size: 1rem;
+    padding: 0.55rem 0.7rem;
     margin-top: 0.3rem;
-    border-radius: 6px;
-    border: 1px solid #ccc;
+    border-radius: 8px;
+    border: 1px solid var(--border);
     box-sizing: border-box;
 }
 
 textarea {
     width: 100%;
-    min-height: 70px;
+    min-height: 90px;
 }
 
 button {
     cursor: pointer;
     border: none;
-    background: #6b63ff;
+    background: var(--brand);
     color: white;
-    font-weight: 500;
+    font-weight: 600;
     transition: background 0.2s ease;
-    padding: 0.4rem 0.75rem;
+    padding: 0.55rem 0.9rem;
+    border-radius: 10px;
 }
 
-button:hover {
-    background: #5249db;
+button:hover { background: var(--brandHover); }
+
+.btn-small {
+    padding: 0.38rem 0.7rem;
+    font-size: 0.9rem;
+    border-radius: 10px;
+    line-height: 1.1;
 }
 
+.btn-secondary {
+    background: #f0f1ff;
+    color: #3b3db0;
+    border: 1px solid #cfd2ff;
+}
+.btn-secondary:hover { background: #e2e4ff; }
+
+/* Cards */
 .note-card {
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    padding: 0.8rem;
+    background: var(--cardBg);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    padding: 0.9rem;
     margin: 1rem 0;
 }
 
-.note-actions {
-    display: flex;
-    gap: 0.4rem;
-    margin-top: 0.4rem;
-    flex-wrap: wrap;
-}
-
-.note-actions button {
-    padding: 0.3rem 0.6rem;
-    font-size: 0.85rem;
-}
-
+/* Chips */
 .chip {
     background: #e6e8ff;
     color: #3b3db0;
     padding: 0.25rem 0.6rem;
     margin: 0.2rem 0.3rem 0 0;
     border-radius: 999px;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     display: inline-block;
 }
 
-.chip span {
-    cursor: pointer;
-    margin-left: 0.4rem;
-    color: #999;
+/* Preserve spaces and line breaks in note text */
+.note-text {
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
-#tagSuggestions span {
-    background: #dfe1ff;
-    color: #3b3db0;
-    padding: 0.25rem 0.6rem;
-    margin: 0.25rem 0.25rem 0 0;
-    border-radius: 999px;
-    font-size: 0.8rem;
-    cursor: pointer;
-    display: inline-block;
-}
-
-#tagSuggestions span:hover {
-    background: #cdd1ff;
-}
-
+/* Header container */
 #headerArea {
-    position: sticky;
-    top: 0;
-    background: #f9f9fc;
-    z-index: 100;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid #ccc;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 0.75rem 0;
 }
 
+/* Desktop nav */
 .navbar {
     display: flex;
     gap: 1rem;
-    background: #6b63ff;
-    padding: 0.75rem 1rem;
-    border-radius: 6px;
-    margin-bottom: 1rem;
+    background: var(--brand);
+    padding: 0.8rem 1rem;
+    border-radius: 12px;
+    margin: 0.5rem 0 1rem 0;
+    align-items: center;
 }
 
 .navbar a {
     color: white;
     text-decoration: none;
-    font-weight: 500;
+    font-weight: 700;
+}
+.navbar a:hover { text-decoration: underline; }
+
+/* Toolbar above textarea (your add.html uses it) */
+.note-input-block { margin-top: 0.5rem; }
+
+.note-toolbar {
+    margin-bottom: 0.5rem;
+    display: flex;
+    gap: 0.25rem;
 }
 
-.navbar a:hover {
-    text-decoration: underline;
+.note-toolbar button {
+    border: 1px solid #ccc;
+    background: #f7f7ff;
+    color: #333;
+    border-radius: 8px;
+    padding: 0.25rem 0.55rem;
+    cursor: pointer;
+    font-size: 0.95rem;
 }
+.note-toolbar button:hover { background: #e3e3ff; }
 
+/* Calendar */
 .calendar {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -121,8 +151,8 @@ button:hover {
 }
 
 .day {
-    border: 1px solid #ccc;
-    border-radius: 6px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
     background: white;
     padding: 0.5rem;
     min-height: 100px;
@@ -135,11 +165,11 @@ button:hover {
 }
 
 .entry {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     background: #e6e8ff;
     padding: 0.2rem 0.4rem;
     margin-top: 0.2rem;
-    border-radius: 4px;
+    border-radius: 6px;
 }
 
 .controls {
@@ -148,57 +178,57 @@ button:hover {
     margin-bottom: 1rem;
 }
 
-/* preserve spaces and line breaks in note text */
-.note-text {
-    white-space: pre-wrap;   /* keeps \n and multiple spaces */
-    word-break: break-word;  /* avoid horizontal scrolling */
+/* -------------------------
+   Mobile adjustments
+   ------------------------- */
+@media (max-width: 720px) {
+    /* Make content comfortable on small screens */
+    main { padding: 0.9rem; }
+
+    /* Reduce big top spacing */
+    h1 { font-size: 1.5rem; }
+    h2 { font-size: 1.2rem; }
+
+    /* Inputs feel better full width */
+    input, textarea, select, button { width: 100%; }
+
+    /* Buttons in rows wrap nicely (your pages use .row inline styles) */
+    .row { width: 100%; }
+
+    /* Optional: bottom navigation */
+    .navbar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        border-radius: 0;
+        margin: 0;
+        justify-content: space-around;
+        padding: 0.75rem 0.5rem;
+        z-index: 1000;
+    }
+
+    /* Space so content doesn’t hide under bottom nav */
+    body { padding-bottom: 72px; }
+
+    /* Header no longer sticky-like behavior (your old css had sticky) */
+    #headerArea {
+        position: static;
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    /* Calendar becomes scrollable / readable */
+    .calendar {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
-/* block wrapping toolbar + textarea */
-.note-input-block {
-    margin-top: 0.5rem;
+@media (min-width: 721px) {
+    /* Desktop layout: center the page */
+    body { padding: 2rem 0; }
+    main {
+        background: transparent;
+        padding: 1rem;
+    }
 }
-
-/* small formatting toolbar above textarea */
-.note-toolbar {
-    margin-bottom: 0.5rem;
-    display: flex;
-    gap: 0.25rem;
-}
-
-.note-toolbar button {
-    border: 1px solid #ccc;
-    background: #f7f7ff;
-    color: #333;
-    border-radius: 4px;
-    padding: 0.15rem 0.4rem;
-    cursor: pointer;
-    font-size: 0.85rem;
-}
-
-.note-toolbar button:hover {
-    background: #e3e3ff;
-}
-
-.note-text {
-    white-space: pre-wrap;
-}
-
-/* small action buttons (used for Show more / Edit / Cancel, etc.) */
-.btn-small {
-    padding: 0.28rem 0.6rem;
-    font-size: 0.85rem;
-    border-radius: 6px;
-    line-height: 1.1;
-}
-
-.btn-secondary {
-    background: #f0f1ff;
-    color: #3b3db0;
-    border: 1px solid #cfd2ff;
-}
-
-.btn-secondary:hover {
-    background: #e2e4ff;
-}
-
