@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
+    <link rel="manifest" th:href="@{/manifest.json}">
+    <meta name="theme-color" content="#6b63ff">
+
     <title>Ask</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
@@ -260,5 +263,11 @@
     }
 </script>
     </main>
+<script>
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js");
+    }
+</script>
+
 </body>
 </html>
