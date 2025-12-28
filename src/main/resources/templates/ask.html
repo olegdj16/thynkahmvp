@@ -170,10 +170,16 @@
             }
 
         } catch (e) {
-            answerEl.innerText = "Error talking to the server. Try again.";
+            answerEl.innerText = navigator.onLine
+                ? "Error talking to the server. Try again."
+                : "Offline — cannot reach server.";
+
             answerEl.classList.add("muted");
 
-            noteEl.innerText = "No note available.";
+            noteEl.innerText = navigator.onLine
+                ? "No note available."
+                : "Offline — cannot search notes.";
+
             noteEl.classList.add("muted");
         } finally {
             setBusy(false);
@@ -221,7 +227,7 @@
             await loadSavedPrompts();
             showToast("Saved prompt");
         } catch (e) {
-            showToast("Failed to save prompt");
+            showToast(navigator.onLine ? "Failed to save prompt" : "Offline — cannot reach server");
         }
     }
 

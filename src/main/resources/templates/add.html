@@ -223,7 +223,7 @@
             renderPreview();
             showToast("Saved");
         } catch (e) {
-            showToast("Failed to save");
+            showToast(navigator.onLine ? "Failed to save" : "Offline — cannot reach server");
         } finally {
             setBusy(false);
         }
