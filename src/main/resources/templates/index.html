@@ -384,7 +384,7 @@
             showToast("Deleted");
         } catch (e) {
             console.error(e);
-            showToast("Failed to delete");
+            showToast(navigator.onLine ? "Failed to delete" : "Offline — cannot reach server");
             hideDeleteConfirm(btn);
         }
     }
@@ -437,7 +437,7 @@
             renderCard(card, (document.getElementById("noteSearch")?.value || "").trim().toLowerCase());
         } catch (e) {
             console.error(e);
-            showToast("Failed to update");
+            showToast(navigator.onLine ? "Failed to update" : "Offline — cannot reach server");
         }
     }
 
@@ -478,7 +478,7 @@
             // location.reload();
         } catch (e) {
             console.error(e);
-            showToast("Failed to update tag");
+            showToast(navigator.onLine ? "Failed to update tag" : "Offline — cannot reach server");
         }
     }
 
@@ -545,7 +545,9 @@ No actionable tasks found for the user.
             if (saveBtn && answer) saveBtn.style.display = "inline-block";
         } catch (e) {
             console.error(e);
-            aiBox.innerText = "Error talking to the server.";
+            aiBox.innerText = navigator.onLine
+                ? "Error talking to the server."
+                : "Offline — cannot reach server.";
         }
     }
 
@@ -596,7 +598,7 @@ No actionable tasks found for the user.
             showToast("AI note saved");
         } catch (e) {
             console.error(e);
-            showToast("Failed to save AI note");
+            showToast(navigator.onLine ? "Failed to save AI note" : "Offline — cannot reach server");
         }
     }
 </script>
