@@ -1,8 +1,17 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
+
+<!--  for iOS  -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<!-- end for iOS -->
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link rel="manifest" th:href="@{/manifest.json}">
+    <meta name="theme-color" content="#6b63ff">
 
     <title>Thynkah — Browse</title>
     <link rel="stylesheet" th:href="@{/css/style.css}" />
@@ -593,5 +602,11 @@ No actionable tasks found for the user.
 </script>
 
     </main>
+<script>
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js");
+    }
+</script>
+
 </body>
 </html>
