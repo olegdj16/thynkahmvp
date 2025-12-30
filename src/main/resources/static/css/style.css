@@ -232,3 +232,24 @@ button:hover { background: var(--brandHover); }
         padding: 1rem;
     }
 }
+#offlineBanner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+
+    padding: 0.6rem 1rem;
+    font-weight: 600;
+
+    background: #ffefc1;
+    border-bottom: 1px solid #e0d28a;
+
+    z-index: 2000;
+}
+
+/* Prevent banner overlapping content */
+body { padding-top: 44px; }
+
+@media (max-width: 720px) {
+    body { padding-top: 52px; } /* slightly bigger on mobile */
+}
