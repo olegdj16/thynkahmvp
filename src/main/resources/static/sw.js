@@ -1,6 +1,6 @@
-const CACHE = "thynkah-v2";
+const CACHE = "thynkah-v3";
 const SHELL = [
-    "/",          // if you have a home route
+    "/",
     "/browse",
     "/add",
     "/askui",
@@ -11,55 +11,50 @@ const SHELL = [
 ];
 
 self.addEventListener("install", (event) => {
-    event.waitUntil(
-        caches.open(CACHE).then((cache) => cache.addAll(SHELL))
-    );
+    self.skipWaiting();
+    event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
 });
 
 self.addEventListener("activate", (event) => {
-    event.waitUntil(
-        caches.keys().then((keys) =>
-            Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-        )
-    );
+    event.waitUntil((async () => {
+        const keys = await caches.keys();
+        await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+        await self.clients.claim();
+    })());
 });
 
 self.addEventListener("fetch", (event) => {
     const req = event.request;
+    const url = new URL(req.url);
 
-    // Never cache/handle non-GET beyond graceful failure
+    // Non-GET: network only, graceful offline error
     if (req.method !== "GET") {
         event.respondWith(
             fetch(req).catch(() =>
-                new Response(
-                    JSON.stringify({ error: "OFFLINE" }),
-                    { status: 503, headers: { "Content-Type": "application/json" } }
-                )
+                new Response(JSON.stringify({ error: "OFFLINE" }), {
+                    status: 503,
+                    headers: { "Content-Type": "application/json" }
+                })
             )
         );
         return;
     }
 
-    const url = new URL(req.url);
-
-    // HTML navigation: cache-first, fallback to cached Browse
+    // ✅ HTML navigations: NETWORK FIRST (prevents stale /browse after saving)
     if (req.mode === "navigate") {
         event.respondWith(
-            caches.match(req).then((cached) => {
-                if (cached) return cached;
-                return fetch(req)
-                    .then((res) => {
-                        const copy = res.clone();
-                        caches.open(CACHE).then((cache) => cache.put(req, copy));
-                        return res;
-                    })
-                    .catch(() => caches.match("/browse") || caches.match("/"));
-            })
+            fetch(req)
+                .then((res) => {
+                    const copy = res.clone();
+                    caches.open(CACHE).then((cache) => cache.put(req, copy));
+                    return res;
+                })
+                .catch(() => caches.match(req).then((c) => c || caches.match("/browse") || caches.match("/")))
         );
         return;
     }
 
-    // Static assets: cache-first, update cache in background
+    // Static assets: cache-first with background update
     if (
         url.pathname.startsWith("/css/") ||
         url.pathname.startsWith("/icons/") ||
@@ -67,10 +62,12 @@ self.addEventListener("fetch", (event) => {
     ) {
         event.respondWith(
             caches.match(req).then((cached) => {
-                const fetchPromise = fetch(req).then((res) => {
-                    caches.open(CACHE).then((cache) => cache.put(req, res.clone()));
-                    return res;
-                }).catch(() => cached);
+                const fetchPromise = fetch(req)
+                    .then((res) => {
+                        caches.open(CACHE).then((cache) => cache.put(req, res.clone()));
+                        return res;
+                    })
+                    .catch(() => cached);
                 return cached || fetchPromise;
             })
         );

@@ -222,6 +222,7 @@
 
             renderPreview();
             showToast("Saved");
+            setTimeout(() => window.location.href = "/browse?ts=" + Date.now(), 250);
         } catch (e) {
             showToast(navigator.onLine ? "Failed to save" : "Offline — cannot reach server");
         } finally {
