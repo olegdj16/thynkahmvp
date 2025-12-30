@@ -92,6 +92,9 @@
 </head>
 
 <body>
+<div id="offlineBanner" style="display:none;">
+    Offline — changes will not be saved
+</div>
 <main>
 
 <h1>🧠 Thynkah</h1>
@@ -610,9 +613,11 @@ No actionable tasks found for the user.
     </main>
 <script>
     if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/sw.js");
+        navigator.serviceWorker.register("/js/sw.js");
     }
 </script>
+
+<script th:src="@{/js/offline.js}"></script>
 
 </body>
 </html>
