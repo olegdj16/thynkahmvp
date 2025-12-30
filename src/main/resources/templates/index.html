@@ -291,6 +291,10 @@
         if (preview) preview.style.display = "-webkit-box";
         if (full) full.style.display = "none";
 
+        // ✅ reset toggle button label to match collapsed state
+        const toggleBtn = card.querySelector("button[onclick='toggleNote(this)']");
+        if (toggleBtn) toggleBtn.innerText = "Show more";
+
         // hide edit areas
         const editAreas = card.querySelectorAll(".edit-area");
         editAreas.forEach(a => a.style.display = "none");
