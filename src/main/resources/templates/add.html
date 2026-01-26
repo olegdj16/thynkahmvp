@@ -1,53 +1,7 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <link rel="manifest" th:href="@{/manifest.json}">
-    <meta name="theme-color" content="#6b63ff">
-
-    <title>Add Note</title>
-    <link rel="stylesheet" th:href="@{/css/style.css}">
-    <style>
-        .row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-        .muted { opacity: 0.75; font-size: 0.9em; }
-        .btn-tertiary { opacity: 0.82; }
-        .tag-input { width: 100%; margin-top: 0.5rem; }
-
-        .preview-box {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 0.75rem;
-            background: #fff;
-            margin-top: 0.75rem;
-            max-height: 240px;
-            overflow: auto;
-        }
-
-        code {
-            padding: 0.1rem 0.25rem;
-            border-radius: 4px;
-            background: #f2f2f2;
-        }
-    </style>
-</head>
-<body>
-<div id="offlineBanner" style="display:none;">
-    Offline — changes will not be saved
-</div>
- <main>
-
-<h1>🧠 Thynkah</h1>
-
-<div id="headerArea">
-    <nav class="navbar">
-        <a th:href="@{/add}">➕ Add</a>
-        <a th:href="@{/browse}">📋 Browse</a>
-        <a th:href="@{/askui}">💬 Ask</a>
-        <a th:href="@{/calendar}">📅 Calendar</a>
-    </nav>
-</div>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="layout :: layout(~{::section}, 'Add')">
+<section>
 
 <h2>Add Note</h2>
 
@@ -84,8 +38,6 @@
     <summary>Optional details</summary>
     <input id="tag" class="tag-input" placeholder="Tags (comma-separated)" />
 </details>
-
-<div id="toast"></div>
 
 <script th:inline="javascript">
     /*<![CDATA[*/
@@ -258,14 +210,5 @@
     /*]]>*/
 </script>
 
-     </main>
- <script>
-     if ("serviceWorker" in navigator) {
-         navigator.serviceWorker.register("/js/sw.js");
-     }
- </script>
-
-<script th:src="@{/js/offline.js}"></script>
-
-</body>
+</section>
 </html>

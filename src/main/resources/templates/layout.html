@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:fragment="layout(content, pageTitle)">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link rel="manifest" th:href="@{/manifest.json}">
+    <meta name="theme-color" content="#6b63ff">
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+    <title th:text="${pageTitle} ?: 'Thynkah'">Thynkah</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+
+<body>
+<div id="offlineBanner" style="display:none;">
+    Offline — changes will not be saved
+</div>
+
+<main>
+    <h1>🧠 Thynkah</h1>
+
+    <div id="headerArea">
+        <nav class="navbar">
+            <a th:href="@{/add}">➕ Add</a>
+            <a th:href="@{/browse}">📋 Browse</a>
+            <a th:href="@{/askui}">💬 Ask</a>
+            <a th:href="@{/calendar}">📅 Calendar</a>
+        </nav>
+    </div>
+
+    <div th:replace="${content}"></div>
+
+    <div id="toast"></div>
+</main>
+
+<script th:src="@{/js/offline.js}"></script>
+<script>
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/js/sw.js");
+    }
+</script>
+</body>
+</html>
