@@ -18,7 +18,7 @@ body {
     background: var(--bg);
     color: var(--text);
     margin: 0;
-    padding: 0;
+    padding-top: 52px;   /* accommodates offline banner */
 }
 
 main {
@@ -29,6 +29,13 @@ main {
 
 /* Typography spacing */
 h1, h2 { margin: 0.75rem 0; }
+
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
 
 /* Controls */
 input, textarea, select, button {
@@ -79,17 +86,6 @@ button:hover { background: var(--brandHover); }
     box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     padding: 0.9rem;
     margin: 1rem 0;
-}
-
-/* Chips */
-.chip {
-    background: #e6e8ff;
-    color: #3b3db0;
-    padding: 0.25rem 0.6rem;
-    margin: 0.2rem 0.3rem 0 0;
-    border-radius: 999px;
-    font-size: 0.85rem;
-    display: inline-block;
 }
 
 /* Preserve spaces and line breaks in note text */
@@ -192,9 +188,6 @@ button:hover { background: var(--brandHover); }
     /* Inputs feel better full width */
     input, textarea, select, button { width: 100%; }
 
-    /* Buttons in rows wrap nicely (your pages use .row inline styles) */
-    .row { width: 100%; }
-
     /* Optional: bottom navigation */
     .navbar {
         position: fixed;
@@ -225,13 +218,12 @@ button:hover { background: var(--brandHover); }
 }
 
 @media (min-width: 721px) {
-    /* Desktop layout: center the page */
-    body { padding: 2rem 0; }
-    main {
-        background: transparent;
-        padding: 1rem;
+    body {
+        padding-top: 44px;
+        padding-bottom: 0;
     }
 }
+
 #offlineBanner {
     position: fixed;
     top: 0;
@@ -247,9 +239,111 @@ button:hover { background: var(--brandHover); }
     z-index: 2000;
 }
 
-/* Prevent banner overlapping content */
-body { padding-top: 44px; }
-
 @media (max-width: 720px) {
     body { padding-top: 52px; } /* slightly bigger on mobile */
 }
+
+
+/*add.html*/
+.muted { opacity: 0.75; font-size: 0.9em; }
+.btn-tertiary { opacity: 0.82; }
+.tag-input { width: 100%; margin-top: 0.5rem; }
+
+.preview-box {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 0.75rem;
+    background: #fff;
+    margin-top: 0.75rem;
+    max-height: 240px;
+    overflow: auto;
+}
+
+code {
+    padding: 0.1rem 0.25rem;
+    border-radius: 4px;
+    background: #f2f2f2;
+}
+
+.note-box {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 0.75rem;
+    background: #fff;
+    white-space: pre-wrap;
+    max-height: 240px;
+    overflow: auto;
+}
+
+.btn-tertiary { opacity: 0.85; }
+.hint { user-select: none; }
+
+.toolbar { margin: 0.75rem 0; }
+#noteSearch { width: min(720px, 100%); padding: 0.5rem; }
+
+.note-meta { margin-top:0.35rem; opacity:0.85; font-size:0.9em; }
+
+.chip {
+    background: #e6e8ff;
+    color: #3b3db0;
+    padding: 0.25rem 0.6rem;
+    margin: 0.2rem 0.3rem 0 0;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    display: inline-block;
+    cursor: pointer;
+}
+
+.note-preview {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 5;
+    -webkit-box-orient: vertical;
+    white-space: normal;
+}
+.note-full { display:none; }
+
+.edit-area { width:100%; margin-top:0.5rem; display:none; }
+.edit-textarea { width:100%; min-height:140px; }
+.edit-input { width:100%; }
+
+.note-ai {
+    margin-top:0.5rem;
+    padding:0.5rem 0.6rem;
+    border:1px solid #ddd;
+    border-radius:8px;
+    background:#fff;
+    font-size:0.9em;
+    white-space:pre-wrap;
+}
+
+.ai-panel {
+    display:none;
+    margin-top:0.5rem;
+    border-top:1px solid #ddd;
+    padding-top:0.5rem;
+    font-size:0.85em;
+}
+.ai-panel textarea { width:100%; }
+.ai-panel input { width:100%; }
+
+/* Toast */
+#toast {
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: #fff;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    display: none;
+    z-index: 9999;
+}
+
+button, .btn-small, .btn-secondary, .btn-tertiary {
+    min-height: 44px;
+}
+
+

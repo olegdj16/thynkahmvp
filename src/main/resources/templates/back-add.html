@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="layout :: layout(~{::section})">
+<section>
+
+    <h2>Add Note</h2>
+
+    <div class="note-input-block">
+        <div class="note-toolbar" aria-label="Formatting toolbar">
+            <button type="button" onclick="applyFormat('bold')" title="Bold"><b>B</b></button>
+            <button type="button" onclick="applyFormat('italic')" title="Italic"><i>I</i></button>
+            <button type="button" onclick="applyFormat('code')" title="Code"><code>&lt;/&gt;</code></button>
+        </div>
+    </div>
+
+    <div class="muted" style="margin-top:0.5rem;">
+        Formatting: <code>**bold**</code> <code>*italic*</code> <code>`code`</code>
+    </div>
+    <textarea id="note"
+              name="text"
+              rows="10"
+              placeholder="Write something…"
+              autofocus
+              oninput="renderPreview()"></textarea>
+
+    <div class="row" style="margin-top:0.75rem;">
+        <button id="saveBtn" onclick="uploadNote()">Save</button>
+        <button id="clearBtn" class="btn-tertiary" onclick="clearForm()">Clear</button>
+        <span class="muted">Tip: Ctrl/⌘ + Enter to save</span>
+    </div>
+
+    <div style="margin-top:0.75rem;">
+        <strong>Preview:</strong>
+        <div id="preview" class="preview-box muted">Start typing to preview formatting.</div>
+    </div>
+
+    <details id="optionalDetails" style="margin-top:0.75rem;">
+        <summary>Optional details</summary>
+        <input id="tag" class="tag-input" placeholder="Tags (comma-separated)" />
+    </details>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const noteEl = document.getElementById("note");
+            if (noteEl) noteEl.focus();
+            renderPreview();
+
+            // Ctrl/⌘ + Enter to save (keeps Enter for new lines)
+            noteEl.addEventListener("keydown", (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                    e.preventDefault();
+                    uploadNote();
+                }
+            });
+        });
+
+        function escapeHtml(s) {
+            return (s || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        // start formatting
+        function formatText(raw) {
+            // Escape first to prevent HTML injection
+            let s = escapeHtml(raw);
+
+            // Inline code first
+            s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+            // Bold
+            s = s.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+            // Italic (simple; avoids matching bold)
+            s = s.replace(/(^|[^*])\*([^*]+)\*/g, "$1<i>$2</i>");
+            // Newlines
+            s = s.replace(/\r?\n/g, "<br>");
+            return s;
+        }
+
+        function applyFormat(type) {
+            const ta = document.getElementById("note");
+            if (!ta) return;
+
+            const map = {
+                bold: ["**", "**"],
+                italic: ["*", "*"],
+                code: ["`", "`"]
+            };
+
+            const [left, right] = map[type] || ["", ""];
+            const start = ta.selectionStart ?? 0;
+            const end = ta.selectionEnd ?? 0;
+
+            const value = ta.value || "";
+            const selected = value.substring(start, end);
+
+            // If nothing selected, insert markers and place cursor between them
+            if (!selected) {
+                const insert = left + right;
+                ta.value = value.substring(0, start) + insert + value.substring(end);
+                const cursor = start + left.length;
+                ta.setSelectionRange(cursor, cursor);
+            } else {
+                ta.value = value.substring(0, start) + left + selected + right + value.substring(end);
+                ta.setSelectionRange(start + left.length, end + left.length);
+            }
+
+            ta.focus();
+            renderPreview();
+        }
+        // end formatting
+
+        function renderPreview() {
+            const noteEl = document.getElementById("note");
+            const previewEl = document.getElementById("preview");
+            const raw = (noteEl?.value || "").trim();
+
+            if (!raw) {
+                previewEl.innerText = "Start typing to preview formatting.";
+                previewEl.classList.add("muted");
+                return;
+            }
+
+            previewEl.innerHTML = formatText(raw);
+            previewEl.classList.remove("muted");
+        }
+
+        function setBusy(isBusy) {
+            const saveBtn = document.getElementById("saveBtn");
+            const clearBtn = document.getElementById("clearBtn");
+            if (saveBtn) saveBtn.disabled = isBusy;
+            if (clearBtn) clearBtn.disabled = isBusy;
+        }
+
+        function normalizeTags(raw) {
+            return (raw || "")
+                .split(",")
+                .map(s => s.trim())
+                .filter(Boolean)
+                .join(", ");
+        }
+
+        async function uploadNote() {
+            const noteEl = document.getElementById("note");
+            const tagEl = document.getElementById("tag");
+
+            const text = (noteEl.value || "").trim();
+            const tag = normalizeTags(tagEl.value || "");
+
+            if (!text) {
+                showToast("Type a note first");
+                noteEl.focus();
+                return;
+            }
+
+            setBusy(true);
+
+            try {
+                const res = await fetch("/notes", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text, tag })
+                });
+
+                if (!res.ok) throw new Error("HTTP " + res.status);
+
+                noteEl.value = "";
+                tagEl.value = "";
+                noteEl.focus();
+
+                const details = document.getElementById("optionalDetails");
+                if (details) details.open = false;
+
+                renderPreview();
+                showToast("Saved");
+                setTimeout(() => window.location.href = "/browse?ts=" + Date.now(), 250);
+            } catch (e) {
+                showToast(navigator.onLine ? "Failed to save" : "Offline — cannot reach server");
+            } finally {
+                setBusy(false);
+            }
+        }
+
+        function clearForm() {
+            const noteEl = document.getElementById("note");
+            const tagEl = document.getElementById("tag");
+            const details = document.getElementById("optionalDetails");
+
+            noteEl.value = "";
+            tagEl.value = "";
+            if (details) details.open = false;
+
+            noteEl.focus();
+            renderPreview();
+            showToast("Cleared");
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById("toast");
+            if (!toast) return;
+            toast.innerText = message;
+            toast.style.display = "block";
+            setTimeout(() => toast.style.display = "none", 1500);
+        }
+
+        /*]]>*/
+    </script>
+
+</section>
+</html>

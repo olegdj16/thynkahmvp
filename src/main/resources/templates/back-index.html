@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="layout :: layout(~{::section})">
+
+
+<section>
+    <h2>Browse Notes</h2>
+
+    <div class="toolbar">
+        <input id="noteSearch" type="text"
+               placeholder="Search notes or tags (e.g., dentist, #work, idea)…"
+               oninput="applySearchFilter()" />
+        <div class="row" style="margin-top:0.5rem;">
+            <span class="muted">Filtering current page. Use Prev/Next for more.</span>
+            <button class="btn-small btn-secondary" type="button" onclick="clearSearch()">Clear</button>
+        </div>
+    </div>
+
+    <hr/>
+
+    <div class="pagination">
+        <span th:text="'Notes: ' + ${notesPage.totalElements}"></span>
+
+        <a th:if="${notesPage.hasPrevious()}"
+           th:href="@{/browse(page=${notesPage.number - 1}, size=${size})}">
+            Prev
+        </a>
+
+        <span th:text="'Page ' + (${notesPage.number + 1}) + ' / ' + ${notesPage.totalPages}"></span>
+
+        <a th:if="${notesPage.hasNext()}"
+           th:href="@{/browse(page=${notesPage.number + 1}, size=${size})}">
+            Next
+        </a>
+    </div>
+
+    <div id="notesContainer">
+        <div th:each="note : ${notes}"
+             class="note-card"
+             th:attr="data-id=${note.id},data-text=${note.text},data-tag=${note.tag}">
+
+            <!-- Display blocks -->
+            <div class="note-preview"></div>
+            <div class="note-full"></div>
+
+            <!-- Meta -->
+            <div class="note-meta">
+            <span class="muted">
+                <span th:text="${#temporals.format(note.createdAt, 'yyyy-MM-dd HH:mm')}"></span>
+            </span>
+            </div>
+
+            <!-- Tags -->
+            <div class="note-meta" th:if="${note.tag != null && !#strings.isEmpty(note.tag)}">
+                <strong>Tags:</strong>
+                <span th:each="t : ${#strings.arraySplit(note.tag, ',')}"
+                      class="chip"
+                      th:text="${#strings.trim(t)}"
+                      th:attr="data-chip=${#strings.trim(t)}"
+                      onclick="filterByChip(this)">
+            </span>
+            </div>
+
+            <!-- Actions (restored: Show more, Edit text, Edit tag, AI, Delete) -->
+            <div class="row" style="margin-top:0.5rem;">
+                <button type="button" class="btn-small btn-secondary" onclick="toggleNote(this)">Show more</button>
+                <button type="button" class="btn-small btn-secondary" onclick="startEditText(this)">Edit text</button>
+                <button type="button" class="btn-small btn-secondary" onclick="startEditTag(this)">Edit tag</button>
+                <button type="button" class="btn-small btn-secondary" onclick="askNoteCombined(this)">🧠 AI</button>
+
+                <!-- Delete: inline confirm, no browser popup -->
+                <button type="button" class="btn-small" onclick="showDeleteConfirm(this)">🗑 Delete</button>
+
+                <div class="delete-confirm" style="display:none;">
+                    <span class="muted" style="margin-right:0.5rem;">Delete?</span>
+                    <button type="button" class="btn-small" onclick="confirmDelete(this)">Proceed</button>
+                    <button type="button" class="btn-small btn-secondary" onclick="hideDeleteConfirm(this)">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Edit Text Area -->
+            <div class="edit-area edit-text">
+                <textarea class="edit-textarea"></textarea>
+                <div class="row" style="margin-top:0.5rem;">
+                    <button type="button" class="btn-small" onclick="saveEditText(this)">Save</button>
+                    <button type="button" class="btn-small btn-secondary" onclick="cancelEdit(this)">Cancel</button>
+                    <span class="muted">Formatting supported: **bold**, *italic*, `code`</span>
+                </div>
+            </div>
+
+            <!-- Edit Tag Area -->
+            <div class="edit-area edit-tag">
+                <input class="edit-input" placeholder="Tags (comma-separated)" />
+                <div class="row" style="margin-top:0.5rem;">
+                    <button type="button" class="btn-small" onclick="saveEditTag(this)">Save</button>
+                    <button type="button" class="btn-small btn-secondary" onclick="cancelEdit(this)">Cancel</button>
+                </div>
+            </div>
+
+            <!-- AI output -->
+            <div class="note-ai" style="display:none;"></div>
+
+            <div class="row" style="margin-top:0.35rem;">
+                <button type="button" class="btn-small btn-secondary ai-save-btn" style="display:none;" onclick="openAiSavePanel(this)">
+                    Save AI as note
+                </button>
+            </div>
+
+            <!-- AI Save Panel -->
+            <div class="ai-panel">
+                <div class="row" style="margin-bottom:0.25rem;">
+                    <label><input type="radio" value="both"> Both</label>
+                    <label><input type="radio" value="summary" checked> Summary</label>
+                    <label><input type="radio" value="tasks"> Tasks</label>
+                </div>
+
+                <label class="muted">Tags:</label>
+                <input type="text" class="ai-tags" />
+
+                <label class="muted" style="margin-top:0.25rem;">Note text:</label>
+                <textarea rows="4" class="ai-text"></textarea>
+
+                <div class="row" style="margin-top:0.35rem;">
+                    <button type="button" class="btn-small" onclick="confirmSaveAiNote(this)">Save</button>
+                    <button type="button" class="btn-small btn-secondary" onclick="cancelSaveAiNote(this)">Cancel</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        function escapeHtml(s) {
+            return (s || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        function formatText(raw) {
+            let s = escapeHtml(raw);
+            s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+            s = s.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+            s = s.replace(/(^|[^*])\*([^*]+)\*/g, "$1<i>$2</i>");
+            s = s.replace(/\r?\n/g, "<br>");
+            return s;
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById("toast");
+            if (!toast) return;
+            toast.innerText = message;
+            toast.style.display = "block";
+            setTimeout(() => toast.style.display = "none", 1400);
+        }
+
+        function getCard(el) {
+            return el.closest(".note-card");
+        }
+
+        function getId(card) {
+            return card.getAttribute("data-id");
+        }
+
+        function renderCard(card, queryLower) {
+            const raw = card.getAttribute("data-text") || "";
+            const tag = card.getAttribute("data-tag") || "";
+
+            const preview = card.querySelector(".note-preview");
+            const full = card.querySelector(".note-full");
+
+            let html = formatText(raw);
+
+            // simple highlight (text only)
+            const q = (queryLower || "").trim();
+            if (q) {
+                const safe = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                const re = new RegExp("(" + safe + ")", "gi");
+                html = html.replace(re, "<mark>$1</mark>");
+            }
+
+            if (preview) preview.innerHTML = html;
+            if (full) full.innerHTML = html;
+
+            // keep collapsed by default
+            if (preview) preview.style.display = "-webkit-box";
+            if (full) full.style.display = "none";
+
+            // ✅ reset toggle button label to match collapsed state
+            const toggleBtn = card.querySelector("button[onclick='toggleNote(this)']");
+            if (toggleBtn) toggleBtn.innerText = "Show more";
+
+            // hide edit areas
+            const editAreas = card.querySelectorAll(".edit-area");
+            editAreas.forEach(a => a.style.display = "none");
+
+            // delete confirm reset
+            const delConfirm = card.querySelector(".delete-confirm");
+            if (delConfirm) delConfirm.style.display = "none";
+
+            // AI blocks keep as-is (do not wipe)
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            document.querySelectorAll(".note-card").forEach(card => renderCard(card, ""));
+        });
+
+        function toggleNote(btn) {
+            const card = getCard(btn);
+            const preview = card.querySelector(".note-preview");
+            const full = card.querySelector(".note-full");
+
+            // don't toggle if editing
+            const isEditing = [...card.querySelectorAll(".edit-area")].some(a => a.style.display === "block");
+            if (isEditing) return;
+
+            const expanded = full.style.display === "block";
+            if (expanded) {
+                full.style.display = "none";
+                preview.style.display = "-webkit-box";
+                btn.innerText = "Show more";
+            } else {
+                full.style.display = "block";
+                preview.style.display = "none";
+                btn.innerText = "Show less";
+            }
+        }
+
+        function applySearchFilter() {
+            const q = (document.getElementById("noteSearch")?.value || "").trim().toLowerCase();
+            const cards = document.querySelectorAll("#notesContainer .note-card");
+            cards.forEach(card => {
+                const text = (card.getAttribute("data-text") || "").toLowerCase();
+                const tag  = (card.getAttribute("data-tag") || "").toLowerCase();
+                const match = !q || text.includes(q) || tag.includes(q);
+                card.style.display = match ? "block" : "none";
+                if (match) renderCard(card, q);
+            });
+        }
+
+        function clearSearch() {
+            const inp = document.getElementById("noteSearch");
+            if (inp) inp.value = "";
+            applySearchFilter();
+        }
+
+        function filterByChip(el) {
+            const tag = (el.getAttribute("data-chip") || "").trim();
+            const inp = document.getElementById("noteSearch");
+            if (inp) inp.value = tag;
+            applySearchFilter();
+        }
+
+        // -----------------------
+        // Inline delete confirm
+        // -----------------------
+        function showDeleteConfirm(btn) {
+            const card = getCard(btn);
+            const confirm = card.querySelector(".delete-confirm");
+            if (!confirm) return;
+            confirm.style.display = "inline-flex";
+            btn.style.display = "none";
+        }
+
+        function hideDeleteConfirm(btn) {
+            const card = getCard(btn);
+            const confirm = card.querySelector(".delete-confirm");
+            const deleteBtn = [...card.querySelectorAll("button")].find(b => (b.innerText || "").includes("Delete"));
+            if (confirm) confirm.style.display = "none";
+            if (deleteBtn) deleteBtn.style.display = "inline-block";
+        }
+
+        async function confirmDelete(btn) {
+            const card = getCard(btn);
+            const id = getId(card);
+
+            try {
+                const res = await fetch(`/notes/${id}`, { method: "DELETE" });
+                if (!res.ok) throw new Error("HTTP " + res.status);
+
+                // remove card from DOM
+                card.remove();
+                showToast("Deleted");
+            } catch (e) {
+                console.error(e);
+                showToast(navigator.onLine ? "Failed to delete" : "Offline — cannot reach server");
+                hideDeleteConfirm(btn);
+            }
+        }
+
+        // -----------------------
+        // Edit Text / Tag
+        // -----------------------
+        function cancelEdit(btn) {
+            const card = getCard(btn);
+            // restore rendered view
+            renderCard(card, (document.getElementById("noteSearch")?.value || "").trim().toLowerCase());
+        }
+
+        function startEditText(btn) {
+            const card = getCard(btn);
+            const raw = card.getAttribute("data-text") || "";
+
+            card.querySelector(".note-preview").style.display = "none";
+            card.querySelector(".note-full").style.display = "none";
+
+            const area = card.querySelector(".edit-area.edit-text");
+            const ta = area.querySelector("textarea");
+            ta.value = raw;
+            area.style.display = "block";
+            ta.focus();
+        }
+
+        async function saveEditText(btn) {
+            const card = getCard(btn);
+            const id = getId(card);
+            const area = card.querySelector(".edit-area.edit-text");
+            const ta = area.querySelector("textarea");
+            const newText = (ta.value || "").trim();
+
+            if (!newText) {
+                showToast("Text cannot be empty");
+                return;
+            }
+
+            try {
+                const res = await fetch(`/notes/${id}/text`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: newText })
+                });
+                if (!res.ok) throw new Error("HTTP " + res.status);
+
+                card.setAttribute("data-text", newText);
+                showToast("Updated");
+                renderCard(card, (document.getElementById("noteSearch")?.value || "").trim().toLowerCase());
+            } catch (e) {
+                console.error(e);
+                showToast(navigator.onLine ? "Failed to update" : "Offline — cannot reach server");
+            }
+        }
+
+        function startEditTag(btn) {
+            const card = getCard(btn);
+            const rawTag = card.getAttribute("data-tag") || "";
+
+            card.querySelector(".note-preview").style.display = "none";
+            card.querySelector(".note-full").style.display = "none";
+
+            const area = card.querySelector(".edit-area.edit-tag");
+            const inp = area.querySelector("input");
+            inp.value = rawTag;
+            area.style.display = "block";
+            inp.focus();
+        }
+
+        async function saveEditTag(btn) {
+            const card = getCard(btn);
+            const id = getId(card);
+            const area = card.querySelector(".edit-area.edit-tag");
+            const inp = area.querySelector("input");
+            const newTag = (inp.value || "").trim();
+
+            try {
+                const res = await fetch(`/notes/${id}/tag`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ tag: newTag })
+                });
+                if (!res.ok) throw new Error("HTTP " + res.status);
+
+                card.setAttribute("data-tag", newTag);
+                showToast("Tag updated");
+                renderCard(card, (document.getElementById("noteSearch")?.value || "").trim().toLowerCase());
+
+                // reload page to refresh tag chips rendered by Thymeleaf (optional)
+                // location.reload();
+            } catch (e) {
+                console.error(e);
+                showToast(navigator.onLine ? "Failed to update tag" : "Offline — cannot reach server");
+            }
+        }
+
+        // -----------------------
+        // AI per note + Save AI as note
+        // -----------------------
+        function buildAiPrompt() {
+            return `
+You are Thynkah, a personal journaling assistant.
+You see one diary note written in first person. Do TWO things:
+
+1) Write a neutral 2–3 sentence summary of what happened and how the writer felt.
+
+2) Then suggest at most 3 realistic "next steps" as a checklist.
+   Each checklist item MUST:
+   - Be an action the writer themself could reasonably take.
+   - Be clearly implied or desired by the writer in the note
+     (for example "I should...", "I want to...", "I need to...", or a very strong hint).
+   - Be under the writer’s direct control.
+
+Important constraints:
+- Do NOT create tasks for things outside the writer’s control.
+- If you’re unsure whether something is a task for the writer, leave it out.
+- Return plain text in this exact structure:
+
+Summary:
+<2–3 sentences>
+
+Possible next steps:
+- [ ] <task 1>
+- [ ] <task 2>
+- [ ] <task 3>
+
+If there are no suitable actions, write:
+Possible next steps:
+No actionable tasks found for the user.
+`.trim();
+        }
+
+        async function askNoteCombined(btn) {
+            const card = getCard(btn);
+            const id = getId(card);
+
+            const aiBox = card.querySelector(".note-ai");
+            const saveBtn = card.querySelector(".ai-save-btn");
+            if (!aiBox) return;
+
+            aiBox.style.display = "block";
+            aiBox.innerText = "Thinking...";
+            if (saveBtn) saveBtn.style.display = "none";
+
+            try {
+                const res = await fetch(`/ask/note/${id}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ question: buildAiPrompt() })
+                });
+                if (!res.ok) throw new Error("HTTP " + res.status);
+
+                const data = await res.json();
+                const answer = (data.answer || "").trim() || "I couldn't generate anything for this note.";
+                aiBox.innerText = answer;
+
+                if (saveBtn && answer) saveBtn.style.display = "inline-block";
+            } catch (e) {
+                console.error(e);
+                aiBox.innerText = navigator.onLine
+                    ? "Error talking to the server."
+                    : "Offline — cannot reach server.";
+            }
+        }
+
+        function openAiSavePanel(btn) {
+            const card = getCard(btn);
+            const aiBox = card.querySelector(".note-ai");
+            const panel = card.querySelector(".ai-panel");
+            const tags = panel.querySelector(".ai-tags");
+            const text = panel.querySelector(".ai-text");
+
+            const aiText = (aiBox?.innerText || "").trim();
+            text.value = aiText;
+            tags.value = "ai";
+
+            panel.style.display = "block";
+        }
+
+        function cancelSaveAiNote(btn) {
+            const card = getCard(btn);
+            const panel = card.querySelector(".ai-panel");
+            if (panel) panel.style.display = "none";
+        }
+
+        async function confirmSaveAiNote(btn) {
+            const card = getCard(btn);
+            const panel = card.querySelector(".ai-panel");
+            const tags = panel.querySelector(".ai-tags");
+            const text = panel.querySelector(".ai-text");
+
+            const noteText = (text.value || "").trim();
+            const tag = (tags.value || "").trim();
+
+            if (!noteText) {
+                showToast("AI text is empty");
+                return;
+            }
+
+            try {
+                const res = await fetch("/notes", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: noteText, tag })
+                });
+
+                if (!res.ok) throw new Error("HTTP " + res.status);
+
+                panel.style.display = "none";
+                showToast("AI note saved");
+            } catch (e) {
+                console.error(e);
+                showToast(navigator.onLine ? "Failed to save AI note" : "Offline — cannot reach server");
+            }
+        }
+    </script>
+
+</section>
+</html>

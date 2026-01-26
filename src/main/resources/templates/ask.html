@@ -1,50 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="layout :: layout(~{::section}, 'Ask')">
+<section>
 
-    <link rel="manifest" th:href="@{/manifest.json}">
-    <meta name="theme-color" content="#6b63ff">
-
-    <title>Ask</title>
-    <link rel="stylesheet" th:href="@{/css/style.css}">
-    <style>
-        .muted { opacity: 0.75; font-size: 0.9em; }
-        .row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-
-        .note-box {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 0.75rem;
-            background: #fff;
-            white-space: pre-wrap;
-            max-height: 240px;
-            overflow: auto;
-        }
-
-        .btn-secondary { opacity: 0.95; }
-        .btn-tertiary { opacity: 0.85; }
-        .hint { user-select: none; }
-    </style>
-</head>
-<body>
-<div id="offlineBanner" style="display:none;">
-    Offline — changes will not be saved
-</div>
-<main>
-
-<h1>🧠 Thynkah</h1>
-
-<div id="headerArea">
-    <nav class="navbar">
-        <a th:href="@{/add}">➕ Add</a>
-        <a th:href="@{/browse}">📋 Browse</a>
-        <a th:href="@{/askui}">💬 Ask</a>
-        <a th:href="@{/calendar}">📅 Calendar</a>
-    </nav>
-
-    <textarea id="question" placeholder="Ask your brain something..."></textarea>
+    <div class="askHeaderArea">
+        <textarea id="question" rows="4" placeholder="Ask your brain something..."></textarea>
 
     <div class="row" style="margin-top:0.5rem;">
         <button id="askBtn" onclick="askQuestion()">Ask</button>
@@ -67,8 +27,6 @@
     <strong>Based on this note:</strong>
     <div id="mostRelevantNote" class="note-box muted">No note yet.</div>
 </div>
-
-<div id="toast"></div>
 
 <script>
     document.addEventListener("DOMContentLoaded", () => {
@@ -271,14 +229,6 @@
         setTimeout(() => toast.style.display = "none", 1500);
     }
 </script>
-    </main>
-<script>
-    if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/js/sw.js");
-    }
-</script>
 
-<script th:src="@{/js/offline.js}"></script>
-
-</body>
+</section>
 </html>
