@@ -186,7 +186,8 @@ button:hover { background: var(--brandHover); }
     h2 { font-size: 1.2rem; }
 
     /* Inputs feel better full width */
-    input, textarea, select, button { width: 100%; }
+    input, textarea, select { width: 100%; }
+    button { width: auto; }
 
     /* Optional: bottom navigation */
     .navbar {
@@ -239,11 +240,6 @@ button:hover { background: var(--brandHover); }
     z-index: 2000;
 }
 
-@media (max-width: 720px) {
-    body { padding-top: 52px; } /* slightly bigger on mobile */
-}
-
-
 /*add.html*/
 .muted { opacity: 0.75; font-size: 0.9em; }
 .btn-tertiary { opacity: 0.82; }
@@ -275,7 +271,6 @@ code {
     overflow: auto;
 }
 
-.btn-tertiary { opacity: 0.85; }
 .hint { user-select: none; }
 
 .toolbar { margin: 0.75rem 0; }
@@ -342,8 +337,6 @@ code {
     z-index: 9999;
 }
 
-button, .btn-small, .btn-secondary, .btn-tertiary {
-    min-height: 44px;
-}
+button { min-height: 44px; }
 
 
