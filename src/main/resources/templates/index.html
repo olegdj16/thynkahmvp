@@ -371,8 +371,46 @@
             if (!res.ok) throw new Error("HTTP " + res.status);
 
             card.setAttribute("data-tag", newTag);
+
+// Remove existing tag meta block
+            const existingTagMeta = [...card.querySelectorAll(".note-meta")]
+                .find(div => div.querySelector(".chip"));
+
+            if (existingTagMeta) {
+                existingTagMeta.remove();
+            }
+
+// Recreate tag chips if tag not empty
+            if (newTag) {
+                const meta = document.createElement("div");
+                meta.className = "note-meta";
+
+                const strong = document.createElement("strong");
+                strong.innerText = "Tags:";
+                meta.appendChild(strong);
+
+                newTag.split(",")
+                    .map(t => t.trim())
+                    .filter(Boolean)
+                    .forEach(t => {
+                        const span = document.createElement("span");
+                        span.className = "chip";
+                        span.innerText = t;
+                        span.setAttribute("data-chip", t);
+                        span.onclick = function () { filterByChip(this); };
+                        meta.appendChild(span);
+                    });
+
+                // Insert after first .note-meta (date row)
+                const dateMeta = card.querySelector(".note-meta");
+                if (dateMeta) {
+                    dateMeta.after(meta);
+                }
+            }
+
             showToast("Tag updated");
             renderCard(card, (document.getElementById("noteSearch")?.value || "").trim().toLowerCase());
+
 
             // reload page to refresh tag chips rendered by Thymeleaf (optional)
             // location.reload();
